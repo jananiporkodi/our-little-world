@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-cream text-ink dark:bg-cream-dark dark:text-[#EDEDEA];
+    background-image:
+      radial-gradient(circle at 12% 8%, rgba(193, 68, 58, 0.035), transparent 40%),
+      radial-gradient(circle at 92% 92%, rgba(35, 35, 35, 0.03), transparent 45%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .card-panel {
+    @apply bg-paper dark:bg-paper-dark rounded-2xl shadow-[0_2px_10px_rgba(20,20,20,0.05)] dark:shadow-none border border-black/[0.06] dark:border-white/[0.06];
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold;
+  }
+
+  .polaroid {
+    @apply bg-white p-2 pb-6 rounded shadow-[0_6px_16px_rgba(20,20,20,0.10)] border border-black/[0.06];
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-accent text-white font-bold px-5 py-3 shadow-[0_6px_14px_rgba(193,68,58,0.28)] transition active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-ink text-white font-bold px-5 py-3 shadow-[0_6px_14px_rgba(35,35,35,0.18)] transition active:scale-95;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-ink/15 px-4 py-2 text-sm font-semibold text-ink/80 dark:text-white/80 transition hover:bg-black/[0.03] dark:hover:bg-white/5;
+  }
+
+  .input-field {
+    @apply w-full rounded-xl border border-ink/15 bg-white dark:bg-white/5 px-4 py-2.5 text-sm text-ink dark:text-white placeholder:text-ink-soft/70 focus:outline-none focus:ring-2 focus:ring-accent/40;
+  }
+}
+
+::selection {
+  background: #F6DEDC;
+  color: #7A2019;
+}
