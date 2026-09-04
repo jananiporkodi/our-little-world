@@ -2,14 +2,15 @@ import SidebarNav from "./SidebarNav";
 import BottomNav from "./BottomNav";
 import FloatingSparkles from "./FloatingSparkles";
 import NotificationsBell from "./NotificationsBell";
-import { getRecentActivity } from "@/lib/data";
+import { getRecentActivity, getSettingsMap } from "@/lib/data";
 
 export default async function AppShell({ children }: { children: React.ReactNode }) {
-  const activity = await getRecentActivity(5);
+  const [activity, settings] = await Promise.all([getRecentActivity(5), getSettingsMap().catch(() => ({}) as Record<string, unknown>)]);
+  const motionEnabled = settings.motion_enabled !== false;
 
   return (
     <div className="min-h-screen flex">
-      <FloatingSparkles />
+      {motionEnabled && <FloatingSparkles />}
       <div className="fixed top-3 right-3 md:top-4 md:right-4 z-50">
         <NotificationsBell items={activity} />
       </div>

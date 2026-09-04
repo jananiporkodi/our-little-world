@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import {
   getSettingsMap,
   getMemoryOfTheDay,
@@ -15,7 +16,9 @@ import {
 } from "@/lib/data";
 import { daysBetween, formatFriendlyDate } from "@/lib/dates";
 import { getQuoteOfTheDay } from "@/lib/quotes";
+import { getAffirmationOfTheDay } from "@/lib/affirmations";
 import { BUCKET_CATEGORIES } from "@/lib/types";
+import { PARTNER_COOKIE_NAME, isValidPartnerId } from "@/lib/auth";
 import HomeReveal from "@/components/home/HomeReveal";
 
 export const dynamic = "force-dynamic";
@@ -53,12 +56,22 @@ export default async function HomePage() {
   const photo = memoryOfDay?.photos?.[0] || favoritePhoto?.url || null;
   const photoCaption = memoryOfDay?.title || memoryOfDay?.story || favoritePhoto?.caption || "a favorite of ours";
 
+  const currentPartnerRaw = cookies().get(PARTNER_COOKIE_NAME)?.value;
+  const currentPartner = isValidPartnerId(currentPartnerRaw) ? currentPartnerRaw : null;
+  const partnerAName = (settings.partner_a_name as string) || null;
+  const partnerBName = (settings.partner_b_name as string) || null;
+  const myName = currentPartner === "partner_a" ? partnerAName : currentPartner === "partner_b" ? partnerBName : null;
+  const otherName = currentPartner === "partner_a" ? partnerBName : currentPartner === "partner_b" ? partnerAName : null;
+  const greeting = myName ? `Welcome back, ${myName} ❤️` : "Welcome home ❤️";
+  const affirmation = getAffirmationOfTheDay(myName, otherName);
+
   return (
     <HomeReveal>
-      <p className="font-hand text-4xl md:text-5xl leading-none mb-1">Welcome home ❤️</p>
-      <p className="text-sm text-ink-soft mb-4">
+      <p className="font-hand text-4xl md:text-5xl leading-none mb-1">{greeting}</p>
+      <p className="text-sm text-ink-soft mb-1">
         {days !== null ? `day ${days.toLocaleString()} together, and counting` : "add your start date in settings to see your day count"}
       </p>
+      <p className="text-xs text-ink-soft italic mb-4">{affirmation}</p>
 
       <div className="flex flex-wrap gap-2 mb-6">
         {days !== null && <span className="chip bg-peach text-accent">💕 {days.toLocaleString()} days</span>}

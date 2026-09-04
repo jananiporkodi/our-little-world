@@ -9,25 +9,28 @@ const config: Config = {
         // Page background (very light warm-gray) vs card surface (pure white).
         cream: "#FAFAF8",
         paper: "#FFFFFF",
-        // "peach" now carries the single red accent used for primary actions.
-        peach: { DEFAULT: "#F6DEDC", deep: "#C1443A" },
-        // "sage" is now a neutral warm-gray, used for calm/done states (no green).
+        // "peach"/"blush" mirror the couple's chosen accent color (see --color-accent*
+        // custom properties in globals.css, set per theme). Not literally peach/blush
+        // hues anymore - names kept to avoid a wider rename across the app.
+        peach: { DEFAULT: "rgb(var(--color-accent-soft) / <alpha-value>)", deep: "rgb(var(--color-accent) / <alpha-value>)" },
+        // "sage" is a neutral warm-gray, used for calm/done states - not theme-affected.
         sage: { DEFAULT: "#F0EFEB", deep: "#8B8B85" },
-        // "lavender" is now a neutral gray, used for tags/chips.
+        // "lavender" is a neutral gray, used for tags/chips - not theme-affected.
         lavender: { DEFAULT: "#F1F1EF", deep: "#4A4A48" },
-        // "blush" mirrors the red accent at a softer tint, used for hearts/favorites.
-        blush: { DEFAULT: "#FBEAE9", deep: "#C1443A" },
-        // Explicit accent token for new components.
-        accent: { DEFAULT: "#C1443A", soft: "#F6DEDC" },
+        blush: { DEFAULT: "rgb(var(--color-accent-soft) / <alpha-value>)", deep: "rgb(var(--color-accent) / <alpha-value>)" },
+        // Explicit accent token, driven by the couple's chosen theme.
+        accent: { DEFAULT: "rgb(var(--color-accent) / <alpha-value>)", soft: "rgb(var(--color-accent-soft) / <alpha-value>)" },
         ink: { DEFAULT: "#232323", soft: "#6E6E6C" },
         bezel: "#232323",
         "cream-dark": "#141414",
         "paper-dark": "#1C1C1C",
       },
       fontFamily: {
-        hand: ["var(--font-caveat)", "cursive"],
-        patrick: ["var(--font-patrick)", "cursive"],
-        sans: ["var(--font-quicksand)", "sans-serif"],
+        // These resolve to whichever fonts the couple's chosen pairing maps them to
+        // (see --font-role-* custom properties, set on <html> in the root layout).
+        hand: ["var(--font-role-hand)", "cursive"],
+        patrick: ["var(--font-role-patrick)", "cursive"],
+        sans: ["var(--font-role-sans)", "sans-serif"],
       },
       borderRadius: {
         xl2: "1.75rem",

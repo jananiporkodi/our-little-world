@@ -1,17 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useFormStatus } from "react-dom";
 import { updateSettings, setCurrentPartner } from "@/app/(app)/settings/actions";
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button type="submit" className="btn-primary !py-2 !px-4 text-sm" disabled={pending}>
-      {pending ? "Saving…" : "save settings"}
-    </button>
-  );
-}
+import { SaveButton, SavedConfirmation } from "./SaveControl";
 
 export default function SettingsClient({
   settings,
@@ -27,9 +18,6 @@ export default function SettingsClient({
 
   return (
     <div>
-      <p className="font-hand text-4xl md:text-5xl leading-none mb-1">Settings 🌙</p>
-      <p className="text-sm text-ink-soft mb-4">the basics that make this world yours</p>
-
       <div className="card-panel p-4 mb-6 max-w-md flex items-center justify-between text-sm">
         <span className="text-ink-soft">
           This device is identified as{" "}
@@ -149,8 +137,8 @@ export default function SettingsClient({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <SubmitButton />
-          {saved && <span className="text-xs text-ink-soft">saved ✓</span>}
+          <SaveButton label="save couple settings" />
+          <SavedConfirmation show={saved} />
         </div>
       </form>
     </div>
