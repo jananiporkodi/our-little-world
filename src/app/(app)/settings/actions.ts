@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { PARTNER_COOKIE_NAME, PARTNER_MAX_AGE_SECONDS, isValidPartnerId } from "@/lib/auth";
 
 export async function updateSettings(formData: FormData) {
   const relationshipStartDate = String(formData.get("relationshipStartDate") ?? "").trim();
@@ -10,6 +12,8 @@ export async function updateSettings(formData: FormData) {
   const partnerBName = String(formData.get("partnerBName") ?? "").trim() || "Partner B";
   const partnerABirthday = String(formData.get("partnerABirthday") ?? "").trim();
   const partnerBBirthday = String(formData.get("partnerBBirthday") ?? "").trim();
+  const partnerAEmail = String(formData.get("partnerAEmail") ?? "").trim();
+  const partnerBEmail = String(formData.get("partnerBEmail") ?? "").trim();
 
   const supabase = getSupabaseServerClient();
 
@@ -21,6 +25,8 @@ export async function updateSettings(formData: FormData) {
   if (anniversaryDate) updates.push({ key: "anniversary_date", value: anniversaryDate });
   if (partnerABirthday) updates.push({ key: "partner_a_birthday", value: partnerABirthday });
   if (partnerBBirthday) updates.push({ key: "partner_b_birthday", value: partnerBBirthday });
+  if (partnerAEmail) updates.push({ key: "partner_a_email", value: partnerAEmail });
+  if (partnerBEmail) updates.push({ key: "partner_b_email", value: partnerBEmail });
 
   for (const u of updates) {
     const { error } = await supabase
@@ -31,5 +37,19 @@ export async function updateSettings(formData: FormData) {
 
   revalidatePath("/settings");
   revalidatePath("/us");
+  revalidatePath("/");
+}
+
+/** Switches which partner this device is identified as - used for the "who's this" toggle from Settings. */
+export async function setCurrentPartner(partner: string) {
+  if (!isValidPartnerId(partner)) return;
+  cookies().set(PARTNER_COOKIE_NAME, partner, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: PARTNER_MAX_AGE_SECONDS,
+    path: "/",
+  });
+  revalidatePath("/settings");
   revalidatePath("/");
 }

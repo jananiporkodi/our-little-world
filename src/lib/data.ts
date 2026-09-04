@@ -182,6 +182,54 @@ export function getAutoCountdowns(settings: Record<string, unknown>): AutoCountd
   return items.sort((a, b) => a.daysRemaining - b.daysRemaining);
 }
 
+export interface ActivityItem {
+  id: string;
+  kind: "memory" | "plan" | "bucket" | "note";
+  title: string;
+  createdAt: string;
+  href: string;
+}
+
+const ACTIVITY_META: Record<ActivityItem["kind"], { emoji: string; verb: string }> = {
+  memory: { emoji: "📸", verb: "added a memory" },
+  plan: { emoji: "🗓", verb: "planned something" },
+  bucket: { emoji: "🪣", verb: "added to the bucket list" },
+  note: { emoji: "💌", verb: "left a note" },
+};
+
+/** Latest activity across memories, plans, bucket list, and notes - powers the notifications bell. Best-effort: a failed sub-query just yields fewer items rather than breaking the whole feed. */
+export async function getRecentActivity(limit = 5): Promise<ActivityItem[]> {
+  const supabase = getSupabaseServerClient();
+
+  const [memoriesRes, plansRes, bucketRes, notesRes] = await Promise.all([
+    supabase.from("memories").select("id,title,created_at").order("created_at", { ascending: false }).limit(limit),
+    supabase.from("plans").select("id,title,created_at").order("created_at", { ascending: false }).limit(limit),
+    supabase.from("bucket_items").select("id,title,created_at").order("created_at", { ascending: false }).limit(limit),
+    supabase.from("notes").select("id,body,created_at").order("created_at", { ascending: false }).limit(limit),
+  ]);
+
+  const items: ActivityItem[] = [];
+  for (const m of memoriesRes.data ?? []) {
+    items.push({ id: `memory-${m.id}`, kind: "memory", title: m.title || "A new memory", createdAt: m.created_at, href: `/memories?open=${m.id}` });
+  }
+  for (const p of plansRes.data ?? []) {
+    items.push({ id: `plan-${p.id}`, kind: "plan", title: p.title, createdAt: p.created_at, href: "/plans" });
+  }
+  for (const b of bucketRes.data ?? []) {
+    items.push({ id: `bucket-${b.id}`, kind: "bucket", title: b.title, createdAt: b.created_at, href: "/bucket-list" });
+  }
+  for (const n of notesRes.data ?? []) {
+    items.push({ id: `note-${n.id}`, kind: "note", title: n.body.slice(0, 60), createdAt: n.created_at, href: "/notes" });
+  }
+
+  items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return items.slice(0, limit);
+}
+
+export function activityMeta(kind: ActivityItem["kind"]) {
+  return ACTIVITY_META[kind];
+}
+
 /** The single most relevant countdown to surface on the home page: nearest upcoming one, or the most recently passed if none are upcoming. */
 export async function getUpcomingCountdown(): Promise<(Countdown & { daysRemaining: number }) | null> {
   const countdowns = await getCountdowns();

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { motion } from "framer-motion";
 import { login, LoginState } from "./actions";
@@ -16,8 +17,17 @@ function SubmitButton() {
   );
 }
 
-export default function LockScreen({ redirectTo }: { redirectTo: string }) {
+export default function LockScreen({
+  redirectTo,
+  partnerNames,
+  savedPartner,
+}: {
+  redirectTo: string;
+  partnerNames: { a: string; b: string };
+  savedPartner: "partner_a" | "partner_b" | null;
+}) {
   const [state, formAction] = useFormState(login, initialState);
+  const [partner, setPartner] = useState<"partner_a" | "partner_b" | "">(savedPartner ?? "");
 
   return (
     <main className="relative min-h-screen overflow-hidden flex items-center justify-center px-6 bg-cream">
@@ -51,6 +61,32 @@ export default function LockScreen({ redirectTo }: { redirectTo: string }) {
 
         <form action={formAction} className="space-y-3">
           <input type="hidden" name="redirectTo" value={redirectTo} />
+          <input type="hidden" name="partner" value={partner} />
+
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft mb-1.5 text-left">Who&apos;s this?</p>
+            <div className="flex rounded-full border border-ink/15 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setPartner("partner_a")}
+                className={`flex-1 px-3 py-2 text-xs font-semibold transition ${
+                  partner === "partner_a" ? "bg-ink text-white" : "text-ink-soft"
+                }`}
+              >
+                {partnerNames.a}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPartner("partner_b")}
+                className={`flex-1 px-3 py-2 text-xs font-semibold transition ${
+                  partner === "partner_b" ? "bg-ink text-white" : "text-ink-soft"
+                }`}
+              >
+                {partnerNames.b}
+              </button>
+            </div>
+          </div>
+
           <input
             type="password"
             name="passcode"

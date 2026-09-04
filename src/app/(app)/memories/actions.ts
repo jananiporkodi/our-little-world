@@ -1,9 +1,38 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { uploadManyMediaFiles } from "@/lib/storage";
 import { geocodePlace } from "@/lib/geocode";
+import { sendEmail } from "@/lib/mailer";
+import { getSettingsMap } from "@/lib/data";
+import { PARTNER_COOKIE_NAME, isValidPartnerId } from "@/lib/auth";
+
+/** Emails the OTHER partner when one of them adds a memory - a no-op if identity/emails are not set up. */
+async function notifyOtherPartnerOfMemory(memoryTitle: string) {
+  try {
+    const adder = cookies().get(PARTNER_COOKIE_NAME)?.value;
+    if (!isValidPartnerId(adder)) return;
+
+    const settings = await getSettingsMap();
+    const isPartnerA = adder === "partner_a";
+    const adderName = (isPartnerA ? settings.partner_a_name : settings.partner_b_name) as string | undefined;
+    const recipientEmail = (isPartnerA ? settings.partner_b_email : settings.partner_a_email) as string | undefined;
+    if (!recipientEmail) return;
+
+    await sendEmail({
+      to: recipientEmail,
+      subject: (adderName || "Your partner") + " added a new memory",
+      html:
+        "<p>" + (adderName || "Your partner") + " just added a new memory" +
+        (memoryTitle ? (": <strong>" + memoryTitle + "</strong>") : "") +
+        " to Our Little World.</p><p>Go take a look!</p>",
+    });
+  } catch (err) {
+    console.error("notifyOtherPartnerOfMemory failed:", err);
+  }
+}
 
 export async function addMemory(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim() || null;
@@ -49,6 +78,8 @@ export async function addMemory(formData: FormData) {
   revalidatePath("/memories");
   revalidatePath("/gallery");
   revalidatePath("/");
+
+  await notifyOtherPartnerOfMemory(title || "");
 }
 
 /** Resolves the place a memory should link to: an existing place id, a brand-new place (best-effort geocoded), or none. */

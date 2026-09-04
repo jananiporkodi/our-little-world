@@ -1,9 +1,13 @@
+import { cookies } from "next/headers";
 import { getSettingsMap } from "@/lib/data";
+import { PARTNER_COOKIE_NAME, isValidPartnerId } from "@/lib/auth";
 import SettingsClient from "@/components/settings/SettingsClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const settings = await getSettingsMap();
-  return <SettingsClient settings={settings} />;
+  const savedPartnerRaw = cookies().get(PARTNER_COOKIE_NAME)?.value;
+  const currentPartner = isValidPartnerId(savedPartnerRaw) ? savedPartnerRaw : null;
+  return <SettingsClient settings={settings} currentPartner={currentPartner} />;
 }

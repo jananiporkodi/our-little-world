@@ -2,7 +2,14 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { isCorrectPasscode, SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from "@/lib/auth";
+import {
+  isCorrectPasscode,
+  isValidPartnerId,
+  SESSION_COOKIE_NAME,
+  SESSION_MAX_AGE_SECONDS,
+  PARTNER_COOKIE_NAME,
+  PARTNER_MAX_AGE_SECONDS,
+} from "@/lib/auth";
 
 export interface LoginState {
   error?: string;
@@ -11,6 +18,7 @@ export interface LoginState {
 export async function login(_prevState: LoginState, formData: FormData): Promise<LoginState> {
   const passcode = String(formData.get("passcode") ?? "");
   const redirectTo = String(formData.get("redirectTo") ?? "/");
+  const partner = String(formData.get("partner") ?? "");
 
   let correct = false;
   try {
@@ -30,6 +38,16 @@ export async function login(_prevState: LoginState, formData: FormData): Promise
     maxAge: SESSION_MAX_AGE_SECONDS,
     path: "/",
   });
+
+  if (isValidPartnerId(partner)) {
+    cookies().set(PARTNER_COOKIE_NAME, partner, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: PARTNER_MAX_AGE_SECONDS,
+      path: "/",
+    });
+  }
 
   redirect(redirectTo || "/");
 }
