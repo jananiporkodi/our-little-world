@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "@/lib/nav";
-import type { ActivityItem } from "@/lib/data";
+import type { ActivityItem } from "@/lib/activity-meta";
 import ThemeToggle from "./ThemeToggle";
 import MoonMark from "./MoonMark";
 import NotificationsBell from "./NotificationsBell";

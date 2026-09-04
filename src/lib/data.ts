@@ -182,20 +182,9 @@ export function getAutoCountdowns(settings: Record<string, unknown>): AutoCountd
   return items.sort((a, b) => a.daysRemaining - b.daysRemaining);
 }
 
-export interface ActivityItem {
-  id: string;
-  kind: "memory" | "plan" | "bucket" | "note";
-  title: string;
-  createdAt: string;
-  href: string;
-}
-
-const ACTIVITY_META: Record<ActivityItem["kind"], { emoji: string; verb: string }> = {
-  memory: { emoji: "📸", verb: "added a memory" },
-  plan: { emoji: "🗓", verb: "planned something" },
-  bucket: { emoji: "🪣", verb: "added to the bucket list" },
-  note: { emoji: "💌", verb: "left a note" },
-};
+export type { ActivityItem } from "./activity-meta";
+export { activityMeta } from "./activity-meta";
+import type { ActivityItem } from "./activity-meta";
 
 /** Latest activity across memories, plans, bucket list, and notes - powers the notifications bell. Best-effort: a failed sub-query just yields fewer items rather than breaking the whole feed. */
 export async function getRecentActivity(limit = 5): Promise<ActivityItem[]> {
@@ -224,10 +213,6 @@ export async function getRecentActivity(limit = 5): Promise<ActivityItem[]> {
 
   items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   return items.slice(0, limit);
-}
-
-export function activityMeta(kind: ActivityItem["kind"]) {
-  return ACTIVITY_META[kind];
 }
 
 /** The single most relevant countdown to surface on the home page: nearest upcoming one, or the most recently passed if none are upcoming. */

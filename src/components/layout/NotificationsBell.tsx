@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { ActivityItem } from "@/lib/data";
-import { activityMeta } from "@/lib/data";
+import type { ActivityItem } from "@/lib/activity-meta";
+import { activityMeta } from "@/lib/activity-meta";
 
 function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
