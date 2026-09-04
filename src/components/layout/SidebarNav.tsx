@@ -3,22 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "@/lib/nav";
-import type { ActivityItem } from "@/lib/activity-meta";
 import ThemeToggle from "./ThemeToggle";
 import MoonMark from "./MoonMark";
-import NotificationsBell from "./NotificationsBell";
 
-export default function SidebarNav({ activity }: { activity: ActivityItem[] }) {
+export default function SidebarNav() {
   const pathname = usePathname();
 
   return (
     <aside className="hidden md:flex md:flex-col w-60 shrink-0 border-r border-black/[0.06] dark:border-white/5 bg-paper/80 dark:bg-paper-dark/70 backdrop-blur-sm p-5">
-      <div className="flex items-center justify-between mb-8 px-2">
+      <div className="flex items-center mb-8 px-2">
         <p className="font-hand text-2xl flex items-center gap-2">
           <MoonMark className="w-5 h-5 text-accent" />
           Our Little World
         </p>
-        <NotificationsBell items={activity} />
       </div>
       <nav className="flex flex-col gap-1 overflow-y-auto">
         {NAV_ITEMS.map((item) => {

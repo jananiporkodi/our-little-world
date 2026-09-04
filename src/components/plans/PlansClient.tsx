@@ -387,18 +387,12 @@ export default function PlansClient({ plans, partnerNames }: { plans: Plan[]; pa
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="font-hand text-2xl">{formatFriendlyDate(selectedDate)}</p>
-            {addingOn !== selectedDate && (
-              <button onClick={() => setAddingOn(selectedDate)} className="btn-ghost !py-1.5 !px-3 text-xs">
-                + add plan on this day
-              </button>
-            )}
+            <button onClick={() => setAddingOn(selectedDate)} className="btn-ghost !py-1.5 !px-3 text-xs">
+              + add plan on this day
+            </button>
           </div>
 
-          {addingOn === selectedDate && (
-            <AddPlanForm defaultDate={selectedDate} names={partnerNames} onDone={() => setAddingOn(null)} />
-          )}
-
-          {selectedPlans.length === 0 && addingOn !== selectedDate ? (
+          {selectedPlans.length === 0 ? (
             <p className="text-sm text-ink-soft">Nothing planned for this day yet.</p>
           ) : (
             <div className="grid gap-2.5 sm:grid-cols-2">
@@ -417,6 +411,17 @@ export default function PlansClient({ plans, partnerNames }: { plans: Plan[]; pa
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-accent" /> completed</span>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-ink/20" /> missed</span>
       </div>
+
+      {addingOn && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          onClick={() => setAddingOn(null)}
+        >
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <AddPlanForm defaultDate={addingOn} names={partnerNames} onDone={() => setAddingOn(null)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

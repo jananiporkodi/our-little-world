@@ -24,7 +24,7 @@ export default function NotificationsBell({ items }: { items: ActivityItem[] }) 
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label="Recent activity"
-        className="relative w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/[0.04] dark:hover:bg-white/5 transition"
+        className="relative w-9 h-9 flex items-center justify-center rounded-full bg-paper/90 dark:bg-paper-dark/90 backdrop-blur-sm shadow-sm border border-black/[0.06] dark:border-white/10 hover:bg-black/[0.04] dark:hover:bg-white/5 transition"
       >
         <span className="text-lg">🔔</span>
         {items.length > 0 && <span className="absolute top-1 right-1.5 w-2 h-2 rounded-full bg-accent" />}
@@ -33,7 +33,7 @@ export default function NotificationsBell({ items }: { items: ActivityItem[] }) 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-2 w-72 card-panel p-2 z-50 max-h-96 overflow-y-auto">
+          <div className="absolute right-0 top-full mt-2 w-72 card-panel p-2 z-50 max-h-96 overflow-y-auto">
             <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft px-2 py-1.5">Recent activity</p>
             {items.length === 0 && <p className="text-xs text-ink-soft px-2 py-2">Nothing yet — add a memory, plan, or note to see it here.</p>}
             {items.map((item) => {
