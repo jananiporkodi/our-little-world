@@ -186,11 +186,11 @@ export type { ActivityItem } from "./activity-meta";
 export { activityMeta } from "./activity-meta";
 import type { ActivityItem } from "./activity-meta";
 
-/** Latest activity across memories, plans, bucket list, and notes - powers the notifications bell. Best-effort: a failed sub-query just yields fewer items rather than breaking the whole feed. */
+/** Latest activity across memories, plans, bucket list, notes, gallery, to-dos, and places - powers the notifications bell. Best-effort: a failed sub-query just yields fewer items rather than breaking the whole feed. */
 export async function getRecentActivity(limit = 5): Promise<ActivityItem[]> {
   const supabase = getSupabaseServerClient();
 
-  const [memoriesRes, plansRes, bucketRes, notesRes, galleryRes] = await Promise.all([
+  const [memoriesRes, plansRes, bucketRes, notesRes, galleryRes, todosRes, placesRes] = await Promise.all([
     supabase.from("memories").select("id,title,created_at").order("created_at", { ascending: false }).limit(limit),
     supabase.from("plans").select("id,title,created_at").order("created_at", { ascending: false }).limit(limit),
     supabase.from("bucket_items").select("id,title,created_at").order("created_at", { ascending: false }).limit(limit),
@@ -201,6 +201,8 @@ export async function getRecentActivity(limit = 5): Promise<ActivityItem[]> {
       .is("memory_id", null)
       .order("created_at", { ascending: false })
       .limit(limit),
+    supabase.from("todos").select("id,title,created_at").order("created_at", { ascending: false }).limit(limit),
+    supabase.from("places").select("id,name,created_at").order("created_at", { ascending: false }).limit(limit),
   ]);
 
   const items: ActivityItem[] = [];
@@ -218,6 +220,12 @@ export async function getRecentActivity(limit = 5): Promise<ActivityItem[]> {
   }
   for (const g of galleryRes.data ?? []) {
     items.push({ id: `gallery-${g.id}`, kind: "gallery", title: g.caption || "A new photo", createdAt: g.created_at, href: "/gallery" });
+  }
+  for (const t of todosRes.data ?? []) {
+    items.push({ id: `todo-${t.id}`, kind: "todo", title: t.title, createdAt: t.created_at, href: "/todos" });
+  }
+  for (const pl of placesRes.data ?? []) {
+    items.push({ id: `place-${pl.id}`, kind: "place", title: pl.name, createdAt: pl.created_at, href: "/places" });
   }
 
   items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
