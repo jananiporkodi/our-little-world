@@ -55,7 +55,7 @@ export default function NotificationsBell({ items }: { items: ActivityItem[] }) 
       >
         <span className="text-lg">🔔</span>
         {hasUnseen && (
-          <span className="absolute top-1 right-1.5 w-2.5 h-2.5 rounded-full bg-accent ring-2 ring-paper dark:ring-paper-dark animate-pulse" />
+          <span className="absolute top-1 right-1.5 w-2.5 h-2.5 rounded-full bg-red-600 ring-2 ring-paper dark:ring-paper-dark animate-pulse" />
         )}
       </button>
 

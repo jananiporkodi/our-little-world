@@ -22,12 +22,22 @@ self.addEventListener("push", (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(payload.title, {
-      body: payload.body,
-      icon: "/icon-192.png",
-      badge: "/icon-192.png",
-      data: { url: payload.url || "/" },
-    })
+    (async () => {
+      await self.registration.showNotification(payload.title, {
+        body: payload.body,
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
+        data: { url: payload.url || "/" },
+      });
+      // Android home-screen icon badge (Badging API) - iOS has no equivalent for web apps.
+      // Count of still-open notifications, so the badge number stays accurate as they're read/dismissed.
+      if ("setAppBadge" in self.navigator) {
+        try {
+          const open = await self.registration.getNotifications();
+          await self.navigator.setAppBadge(open.length);
+        } catch {}
+      }
+    })()
   );
 });
 
@@ -36,14 +46,22 @@ self.addEventListener("notificationclick", (event) => {
   const url = event.notification.data?.url || "/";
 
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      for (const client of clients) {
+    (async () => {
+      if ("setAppBadge" in self.navigator) {
+        try {
+          const stillOpen = await self.registration.getNotifications();
+          if (stillOpen.length > 0) await self.navigator.setAppBadge(stillOpen.length);
+          else await self.navigator.clearAppBadge();
+        } catch {}
+      }
+      const clientsList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of clientsList) {
         if ("focus" in client) {
           client.navigate(url);
           return client.focus();
         }
       }
       return self.clients.openWindow(url);
-    })
+    })()
   );
 });

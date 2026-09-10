@@ -93,6 +93,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   document.documentElement.classList.add('dark');
                 }
               } catch (e) {}
+              try {
+                if ('clearAppBadge' in navigator) {
+                  navigator.clearAppBadge();
+                  document.addEventListener('visibilitychange', function () {
+                    if (document.visibilityState === 'visible') navigator.clearAppBadge();
+                  });
+                }
+              } catch (e) {}
             `,
           }}
         />
