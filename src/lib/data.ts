@@ -190,11 +190,17 @@ import type { ActivityItem } from "./activity-meta";
 export async function getRecentActivity(limit = 5): Promise<ActivityItem[]> {
   const supabase = getSupabaseServerClient();
 
-  const [memoriesRes, plansRes, bucketRes, notesRes] = await Promise.all([
+  const [memoriesRes, plansRes, bucketRes, notesRes, galleryRes] = await Promise.all([
     supabase.from("memories").select("id,title,created_at").order("created_at", { ascending: false }).limit(limit),
     supabase.from("plans").select("id,title,created_at").order("created_at", { ascending: false }).limit(limit),
     supabase.from("bucket_items").select("id,title,created_at").order("created_at", { ascending: false }).limit(limit),
     supabase.from("notes").select("id,body,created_at").order("created_at", { ascending: false }).limit(limit),
+    supabase
+      .from("gallery")
+      .select("id,caption,memory_id,created_at")
+      .is("memory_id", null)
+      .order("created_at", { ascending: false })
+      .limit(limit),
   ]);
 
   const items: ActivityItem[] = [];
@@ -209,6 +215,9 @@ export async function getRecentActivity(limit = 5): Promise<ActivityItem[]> {
   }
   for (const n of notesRes.data ?? []) {
     items.push({ id: `note-${n.id}`, kind: "note", title: n.body.slice(0, 60), createdAt: n.created_at, href: "/notes" });
+  }
+  for (const g of galleryRes.data ?? []) {
+    items.push({ id: `gallery-${g.id}`, kind: "gallery", title: g.caption || "A new photo", createdAt: g.created_at, href: "/gallery" });
   }
 
   items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
