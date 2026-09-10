@@ -60,7 +60,7 @@ function UploadForm({
       <input type="hidden" name="tags" value={defaultTags} />
 
       <div>
-        <p className="text-[11px] text-ink-soft mb-1">who's this for?</p>
+        <p className="text-[11px] text-ink-soft mb-1">who&apos;s this for?</p>
         <div className="flex gap-1.5">
           {PERSON_OPTIONS.map((opt) => (
             <button
