@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { uploadManyMediaFiles } from "@/lib/storage";
+import { notifyOtherPartner, getActorName } from "@/lib/push";
 import type { PartnerAssignee, PlanStatus } from "@/lib/types";
 
 export async function addPlan(formData: FormData) {
@@ -35,6 +36,9 @@ export async function addPlan(formData: FormData) {
 
   revalidatePath("/plans");
   revalidatePath("/");
+
+  const actorName = await getActorName();
+  await notifyOtherPartner({ title: `${actorName} planned something`, body: title, url: "/plans" });
 }
 
 export async function markPlanStatus(planId: string, status: PlanStatus) {

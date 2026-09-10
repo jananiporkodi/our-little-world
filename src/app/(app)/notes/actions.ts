@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { notifyOtherPartner, getActorName } from "@/lib/push";
 
 export async function addNote(formData: FormData) {
   const author = String(formData.get("author") ?? "").trim() || null;
@@ -16,4 +17,7 @@ export async function addNote(formData: FormData) {
 
   revalidatePath("/notes");
   revalidatePath("/");
+
+  const actorName = await getActorName();
+  await notifyOtherPartner({ title: `${actorName} left a note`, body: body.slice(0, 80), url: "/notes" });
 }

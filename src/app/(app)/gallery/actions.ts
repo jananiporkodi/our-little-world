@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { uploadManyMediaFiles } from "@/lib/storage";
+import { notifyOtherPartner, getActorName } from "@/lib/push";
 
 /** Direct-to-Gallery upload, independent of Memories. One optional caption applies to the whole batch. */
 export async function addGalleryPhotos(formData: FormData) {
@@ -35,4 +36,7 @@ export async function addGalleryPhotos(formData: FormData) {
 
   revalidatePath("/gallery");
   revalidatePath("/");
+
+  const actorName = await getActorName();
+  await notifyOtherPartner({ title: `${actorName} added a photo to the gallery`, body: caption || "Take a look!", url: "/gallery" });
 }

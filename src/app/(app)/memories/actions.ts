@@ -8,6 +8,7 @@ import { geocodePlace } from "@/lib/geocode";
 import { sendEmail } from "@/lib/mailer";
 import { getSettingsMap } from "@/lib/data";
 import { PARTNER_COOKIE_NAME, isValidPartnerId } from "@/lib/auth";
+import { notifyOtherPartner, getActorName } from "@/lib/push";
 
 /** Emails the OTHER partner when one of them adds a memory - a no-op if identity/emails are not set up. */
 async function notifyOtherPartnerOfMemory(memoryTitle: string) {
@@ -80,6 +81,12 @@ export async function addMemory(formData: FormData) {
   revalidatePath("/");
 
   await notifyOtherPartnerOfMemory(title || "");
+  const actorName = await getActorName();
+  await notifyOtherPartner({
+    title: `${actorName} added a memory`,
+    body: title || "Take a look!",
+    url: `/memories?open=${memory.id}`,
+  });
 }
 
 /** Resolves the place a memory should link to: an existing place id, a brand-new place (best-effort geocoded), or none. */
