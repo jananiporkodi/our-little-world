@@ -35,7 +35,7 @@ export async function addPlan(formData: FormData) {
   if (error) throw error;
 
   revalidatePath("/plans");
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 
   const actorName = await getActorName();
   await notifyOtherPartner({ title: `${actorName} planned something`, body: title, url: "/plans" });
@@ -48,7 +48,7 @@ export async function markPlanStatus(planId: string, status: PlanStatus) {
   if (error) throw error;
 
   revalidatePath("/plans");
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 }
 
 export async function deletePlan(planId: string) {
@@ -58,7 +58,7 @@ export async function deletePlan(planId: string) {
   if (error) throw error;
 
   revalidatePath("/plans");
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 }
 
 /** Converts a past plan into a Memory, carrying over title/date/time/location/notes/people, then linking the two records together. */
@@ -113,5 +113,5 @@ export async function convertPlanToMemory(formData: FormData) {
   revalidatePath("/plans");
   revalidatePath("/memories");
   revalidatePath("/gallery");
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 }

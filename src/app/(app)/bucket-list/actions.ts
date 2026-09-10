@@ -41,7 +41,7 @@ export async function addBucketItem(formData: FormData) {
   if (error) throw error;
 
   revalidatePath("/bucket-list");
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 
   const actorName = await getActorName();
   await notifyOtherPartner({ title: `${actorName} added to the bucket list`, body: title, url: "/bucket-list" });
@@ -103,7 +103,7 @@ export async function completeBucketItem(formData: FormData) {
   revalidatePath("/bucket-list");
   revalidatePath("/memories");
   revalidatePath("/gallery");
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 }
 
 export async function deleteBucketItem(itemId: string) {

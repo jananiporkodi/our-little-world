@@ -78,7 +78,7 @@ export async function addMemory(formData: FormData) {
 
   revalidatePath("/memories");
   revalidatePath("/gallery");
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 
   await notifyOtherPartnerOfMemory(title || "");
   const actorName = await getActorName();
@@ -187,7 +187,7 @@ export async function updateMemory(formData: FormData) {
   revalidatePath("/memories");
   revalidatePath("/gallery");
   revalidatePath("/places");
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 }
 
 export async function toggleMemoryFavorite(memoryId: string, value: boolean) {
@@ -197,7 +197,7 @@ export async function toggleMemoryFavorite(memoryId: string, value: boolean) {
   if (error) throw error;
 
   revalidatePath("/memories");
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 }
 
 export async function deleteMemory(memoryId: string) {
@@ -209,7 +209,7 @@ export async function deleteMemory(memoryId: string) {
 
   revalidatePath("/memories");
   revalidatePath("/gallery");
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 }
 
 export async function reactToMemory(memoryId: string, emoji: string) {

@@ -16,7 +16,7 @@ export async function addNote(formData: FormData) {
   if (error) throw error;
 
   revalidatePath("/notes");
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 
   const actorName = await getActorName();
   await notifyOtherPartner({ title: `${actorName} left a note`, body: body.slice(0, 80), url: "/notes" });

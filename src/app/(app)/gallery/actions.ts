@@ -35,7 +35,7 @@ export async function addGalleryPhotos(formData: FormData) {
   if (error) throw error;
 
   revalidatePath("/gallery");
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 
   const actorName = await getActorName();
   await notifyOtherPartner({ title: `${actorName} added a photo to the gallery`, body: caption || "Take a look!", url: "/gallery" });
@@ -67,7 +67,7 @@ export async function updateGalleryPhoto(formData: FormData) {
   if (error) throw error;
 
   revalidatePath("/gallery");
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 }
 
 /** Deletes a gallery-only photo. Not for memory-linked photos - delete those from Memories instead. */
@@ -78,5 +78,5 @@ export async function deleteGalleryPhoto(id: string) {
   if (error) throw error;
 
   revalidatePath("/gallery");
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 }
