@@ -49,7 +49,7 @@ export default function Lightbox({
 
             <button
               onClick={onClose}
-              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white text-ink flex items-center justify-center text-sm shadow"
+              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white text-bezel flex items-center justify-center text-sm shadow"
               aria-label="Close"
             >
               ✕

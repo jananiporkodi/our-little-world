@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import type { PartnerAssignee, Plan } from "@/lib/types";
 import { PLAN_CATEGORIES } from "@/lib/types";
@@ -39,7 +40,7 @@ const STATE_DOT: Record<string, string> = {
 };
 
 const STATE_CHIP: Record<string, string> = {
-  upcoming: "bg-lavender text-ink",
+  upcoming: "bg-lavender text-bezel",
   completed: "bg-blush text-accent",
   missed: "bg-black/5 dark:bg-white/10 text-ink-soft line-through",
   cancelled: "bg-black/5 dark:bg-white/10 text-ink-soft line-through",
@@ -181,6 +182,11 @@ function PlanDetailRow({ plan, names }: { plan: Plan; names: { a: string; b: str
           </div>
         </div>
         <div className="flex flex-col gap-1.5 flex-shrink-0">
+          {plan.memory_id && (
+            <Link href={`/memories?open=${plan.memory_id}`} className="btn-ghost !py-1 !px-2 text-[11px] text-accent">
+              view memory
+            </Link>
+          )}
           {plan.status === "planned" && (
             <>
               {(state === "missed" || state === "upcoming") && (
@@ -304,13 +310,13 @@ export default function PlansClient({ plans, partnerNames }: { plans: Plan[]; pa
           <div className="flex rounded-full border border-ink/15 overflow-hidden ml-2">
             <button
               onClick={() => setViewMode("month")}
-              className={`px-3 py-1.5 text-xs font-semibold ${viewMode === "month" ? "bg-ink text-white" : "text-ink-soft"}`}
+              className={`px-3 py-1.5 text-xs font-semibold ${viewMode === "month" ? "bg-bezel text-white" : "text-ink-soft"}`}
             >
               month
             </button>
             <button
               onClick={() => setViewMode("agenda")}
-              className={`px-3 py-1.5 text-xs font-semibold ${viewMode === "agenda" ? "bg-ink text-white" : "text-ink-soft"}`}
+              className={`px-3 py-1.5 text-xs font-semibold ${viewMode === "agenda" ? "bg-bezel text-white" : "text-ink-soft"}`}
             >
               agenda
             </button>

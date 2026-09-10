@@ -2,6 +2,7 @@ import SidebarNav from "./SidebarNav";
 import BottomNav from "./BottomNav";
 import FloatingSparkles from "./FloatingSparkles";
 import NotificationsBell from "./NotificationsBell";
+import ThemeToggle from "./ThemeToggle";
 import { getRecentActivity, getSettingsMap } from "@/lib/data";
 
 export default async function AppShell({ children }: { children: React.ReactNode }) {
@@ -11,7 +12,8 @@ export default async function AppShell({ children }: { children: React.ReactNode
   return (
     <div className="min-h-screen flex">
       {motionEnabled && <FloatingSparkles />}
-      <div className="fixed top-3 right-3 md:top-4 md:right-4 z-50">
+      <div className="fixed top-3 right-3 md:top-4 md:right-4 z-50 flex items-center gap-2">
+        <ThemeToggle />
         <NotificationsBell items={activity} />
       </div>
       <SidebarNav />

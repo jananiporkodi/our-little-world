@@ -76,7 +76,7 @@ export default async function HomePage() {
       <div className="flex flex-wrap gap-2 mb-6">
         {days !== null && <span className="chip bg-peach text-accent">💕 {days.toLocaleString()} days</span>}
         {upcomingCountdown && (
-          <span className="chip bg-lavender text-ink">
+          <span className="chip bg-lavender text-bezel">
             {upcomingCountdown.emoji ?? "⏳"} {upcomingCountdown.title}
             {" · "}
             {upcomingCountdown.daysRemaining > 0
@@ -87,7 +87,7 @@ export default async function HomePage() {
           </span>
         )}
         {stats.placesCount > 0 && (
-          <Link href="/places" className="chip bg-sage text-ink">
+          <Link href="/places" className="chip bg-sage text-bezel">
             📍 {stats.placesCount} {stats.placesCount === 1 ? "place" : "places"} visited
           </Link>
         )}
