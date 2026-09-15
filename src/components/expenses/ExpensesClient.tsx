@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import type { Expense, PartnerAssignee } from "@/lib/types";
 import { EXPENSE_CATEGORIES } from "@/lib/types";
-import { todayIST } from "@/lib/dates";
+import { todayIST, formatFriendlyDate } from "@/lib/dates";
 import { addExpense, updateExpense, deleteExpense } from "@/app/(app)/expenses/actions";
 
 function formatINR(n: number): string {
@@ -14,6 +14,15 @@ function formatINR(n: number): string {
 function monthLabel(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+/** First and last day of the calendar month containing `dateStr` (a "YYYY-MM-DD" string). */
+function currentMonthBounds(dateStr: string): { from: string; to: string } {
+  const [y, m] = dateStr.split("-").map(Number);
+  const from = `${y}-${String(m).padStart(2, "0")}-01`;
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const to = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return { from, to };
 }
 
 function categoryMeta(key: string) {
@@ -114,47 +123,6 @@ function ExpenseForm({
   );
 }
 
-function ExpenseRow({ expense, names }: { expense: Expense; names: { a: string; b: string } }) {
-  const [editing, setEditing] = useState(false);
-  const [pending, startTransition] = useTransition();
-  const meta = categoryMeta(expense.category);
-  const payerName = expense.paid_by === "partner_a" ? names.a : names.b;
-
-  if (editing) {
-    return (
-      <ExpenseForm expense={expense} names={names} defaultPaidBy={expense.paid_by} onDone={() => setEditing(false)} />
-    );
-  }
-
-  return (
-    <div className="card-panel p-3.5 flex items-center gap-3">
-      <span className="text-xl flex-shrink-0">{meta.emoji}</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-ink truncate">{expense.title}</p>
-        <p className="text-[11px] text-ink-soft">
-          {payerName} · {meta.label} {expense.is_shared ? "· split" : "· personal"}
-        </p>
-        {expense.notes && <p className="text-[11px] text-ink-soft italic mt-0.5">{expense.notes}</p>}
-      </div>
-      <div className="text-right flex-shrink-0">
-        <p className="font-bold text-sm">{formatINR(expense.amount)}</p>
-        <div className="flex gap-2 justify-end mt-1">
-          <button onClick={() => setEditing(true)} className="text-[11px] text-ink-soft underline underline-offset-2">
-            edit
-          </button>
-          <button
-            disabled={pending}
-            onClick={() => startTransition(() => deleteExpense(expense.id))}
-            className="text-[11px] text-accent underline underline-offset-2"
-          >
-            delete
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function BarRow({ label, emoji, amount, max }: { label: string; emoji: string; amount: number; max: number }) {
   const pct = max > 0 ? Math.max(4, Math.round((amount / max) * 100)) : 0;
   return (
@@ -181,21 +149,44 @@ export default function ExpensesClient({
   partnerNames: { a: string; b: string };
   currentPartner: PartnerAssignee | null;
 }) {
+  const defaultRange = useMemo(() => currentMonthBounds(todayIST()), []);
+  const [from, setFrom] = useState(defaultRange.from);
+  const [to, setTo] = useState(defaultRange.to);
   const [adding, setAdding] = useState(false);
-  const [monthFilter, setMonthFilter] = useState<string>("all");
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [deletePending, startDeleteTransition] = useTransition();
 
   const defaultPaidBy: "partner_a" | "partner_b" =
     currentPartner === "partner_a" || currentPartner === "partner_b" ? currentPartner : "partner_a";
 
-  const months = useMemo(() => {
-    const set = new Set(expenses.map((e) => e.expense_date.slice(0, 7)));
-    return Array.from(set).sort((a, b) => (a < b ? 1 : -1));
-  }, [expenses]);
+  function resetToThisMonth() {
+    const bounds = currentMonthBounds(todayIST());
+    setFrom(bounds.from);
+    setTo(bounds.to);
+  }
+
+  function showAllTime() {
+    if (expenses.length === 0) return;
+    const dates = expenses.map((e) => e.expense_date);
+    setFrom(dates.reduce((a, b) => (a < b ? a : b)));
+    setTo(dates.reduce((a, b) => (a > b ? a : b)));
+  }
 
   const filtered = useMemo(
-    () => (monthFilter === "all" ? expenses : expenses.filter((e) => e.expense_date.slice(0, 7) === monthFilter)),
-    [expenses, monthFilter]
+    () => expenses.filter((e) => e.expense_date >= from && e.expense_date <= to),
+    [expenses, from, to]
   );
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, Expense[]>();
+    for (const e of filtered) {
+      const key = e.expense_date.slice(0, 7);
+      const list = map.get(key) ?? [];
+      list.push(e);
+      map.set(key, list);
+    }
+    return Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+  }, [filtered]);
 
   const stats = useMemo(() => {
     let total = 0;
@@ -230,16 +221,22 @@ export default function ExpensesClient({
       <p className="font-hand text-4xl md:text-5xl leading-none mb-1">Our expenses 💰</p>
       <p className="text-sm text-ink-soft mb-5">what we&apos;ve spent, split fairly</p>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-        <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="input-field !w-auto text-sm">
-          <option value="all">All time</option>
-          {months.map((m) => (
-            <option key={m} value={m}>
-              {monthLabel(m)}
-            </option>
-          ))}
-        </select>
-        <button onClick={() => setAdding(true)} className="btn-primary !py-2 !px-4 text-sm">
+      <div className="flex flex-wrap items-end gap-2 mb-5">
+        <div>
+          <label className="block text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">From</label>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="input-field !w-auto text-sm" />
+        </div>
+        <div>
+          <label className="block text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">To</label>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="input-field !w-auto text-sm" />
+        </div>
+        <button onClick={resetToThisMonth} className="btn-ghost !py-2 !px-3 text-xs">
+          this month
+        </button>
+        <button onClick={showAllTime} className="btn-ghost !py-2 !px-3 text-xs">
+          all time
+        </button>
+        <button onClick={() => setAdding(true)} className="btn-primary !py-2 !px-4 text-sm ml-auto">
           + add expense
         </button>
       </div>
@@ -252,9 +249,7 @@ export default function ExpensesClient({
 
       <div className="grid gap-3 sm:grid-cols-3 mb-5">
         <div className="card-panel p-4">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">
-            {monthFilter === "all" ? "Total spent" : "Spent this month"}
-          </p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">Spent in range</p>
           <p className="text-2xl font-bold">{formatINR(stats.total)}</p>
         </div>
         <div className="card-panel p-4">
@@ -296,16 +291,82 @@ export default function ExpensesClient({
         </div>
       )}
 
-      <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft mb-2">
-        {monthFilter === "all" ? "All expenses" : monthLabel(monthFilter)}
-      </p>
-      {filtered.length === 0 ? (
-        <p className="text-sm text-ink-soft">No expenses logged yet.</p>
+      {grouped.length === 0 ? (
+        <p className="text-sm text-ink-soft">No expenses logged in this range.</p>
       ) : (
-        <div className="space-y-2.5">
-          {filtered.map((e) => (
-            <ExpenseRow key={e.id} expense={e} names={partnerNames} />
-          ))}
+        grouped.map(([monthKey, items]) => (
+          <div key={monthKey} className="mb-6">
+            <p className="font-hand text-xl mb-2">{monthLabel(monthKey)}</p>
+            <div className="card-panel p-0 overflow-x-auto">
+              <table className="w-full text-sm min-w-[640px]">
+                <thead>
+                  <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-ink-soft border-b border-black/10 dark:border-white/10">
+                    <th className="py-2 px-3">Date</th>
+                    <th className="py-2 px-3">Title</th>
+                    <th className="py-2 px-3">Category</th>
+                    <th className="py-2 px-3">Paid by</th>
+                    <th className="py-2 px-3">Split</th>
+                    <th className="py-2 px-3 text-right">Amount</th>
+                    <th className="py-2 px-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((e) => {
+                    const meta = categoryMeta(e.category);
+                    const payerName = e.paid_by === "partner_a" ? partnerNames.a : partnerNames.b;
+                    return (
+                      <tr key={e.id} className="border-b last:border-0 border-black/[0.05] dark:border-white/5">
+                        <td className="py-2 px-3 whitespace-nowrap text-ink-soft text-xs">
+                          {formatFriendlyDate(e.expense_date)}
+                        </td>
+                        <td className="py-2 px-3">
+                          <p className="font-semibold truncate max-w-[180px]">{e.title}</p>
+                          {e.notes && <p className="text-[11px] text-ink-soft italic truncate max-w-[180px]">{e.notes}</p>}
+                        </td>
+                        <td className="py-2 px-3 whitespace-nowrap text-xs">
+                          {meta.emoji} {meta.label}
+                        </td>
+                        <td className="py-2 px-3 whitespace-nowrap text-xs">{payerName}</td>
+                        <td className="py-2 px-3 whitespace-nowrap text-xs">{e.is_shared ? "split" : "personal"}</td>
+                        <td className="py-2 px-3 whitespace-nowrap text-right font-bold">{formatINR(e.amount)}</td>
+                        <td className="py-2 px-3 whitespace-nowrap text-right">
+                          <button
+                            onClick={() => setEditingExpense(e)}
+                            className="text-[11px] text-ink-soft underline underline-offset-2 mr-2.5"
+                          >
+                            edit
+                          </button>
+                          <button
+                            disabled={deletePending}
+                            onClick={() => startDeleteTransition(() => deleteExpense(e.id))}
+                            className="text-[11px] text-accent underline underline-offset-2"
+                          >
+                            delete
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))
+      )}
+
+      {editingExpense && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          onClick={() => setEditingExpense(null)}
+        >
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <ExpenseForm
+              expense={editingExpense}
+              names={partnerNames}
+              defaultPaidBy={editingExpense.paid_by}
+              onDone={() => setEditingExpense(null)}
+            />
+          </div>
         </div>
       )}
     </div>
