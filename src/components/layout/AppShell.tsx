@@ -3,16 +3,26 @@ import BottomNav from "./BottomNav";
 import FloatingSparkles from "./FloatingSparkles";
 import NotificationsBell from "./NotificationsBell";
 import ThemeToggle from "./ThemeToggle";
+import KissButton from "./KissButton";
 import { getRecentActivity, getSettingsMap } from "@/lib/data";
+import { getMoonPhase } from "@/lib/moon";
 
 export default async function AppShell({ children }: { children: React.ReactNode }) {
   const [activity, settings] = await Promise.all([getRecentActivity(5), getSettingsMap().catch(() => ({}) as Record<string, unknown>)]);
   const motionEnabled = settings.motion_enabled !== false;
+  const moonPhase = getMoonPhase();
 
   return (
     <div className="min-h-screen flex">
       {motionEnabled && <FloatingSparkles />}
       <div className="fixed top-3 right-3 md:top-4 md:right-4 z-50 flex items-center gap-2">
+        <span
+          title={moonPhase.name}
+          className="w-9 h-9 hidden sm:flex items-center justify-center rounded-full bg-paper/90 dark:bg-paper-dark/90 backdrop-blur-sm shadow-sm border border-black/[0.06] dark:border-white/10 text-base"
+        >
+          {moonPhase.emoji}
+        </span>
+        <KissButton />
         <ThemeToggle />
         <NotificationsBell items={activity} />
       </div>

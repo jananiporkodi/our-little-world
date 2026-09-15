@@ -1,6 +1,6 @@
 import "server-only";
 import { getSupabaseServerClient } from "./supabase/server";
-import { dayOfYearIndex, daysUntil, nextAnniversary, ordinal } from "./dates";
+import { dayOfYearIndex, daysUntil, nextAnniversary, ordinal, todayIST } from "./dates";
 import type {
   BucketItem,
   Memory,
@@ -360,6 +360,59 @@ export async function getStats() {
     countriesCount: countries.size,
     placesCount: places.count ?? 0,
   };
+}
+
+/** Both partners' mood check-in for today (IST), for the Home "how are you feeling" widget. */
+export async function getTodaysMoods(): Promise<{ a: string | null; b: string | null }> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("daily_moods")
+    .select("partner_id, mood")
+    .eq("mood_date", todayIST());
+  if (error) throw error;
+
+  const rows = (data ?? []) as { partner_id: "partner_a" | "partner_b"; mood: string }[];
+  return {
+    a: rows.find((r) => r.partner_id === "partner_a")?.mood ?? null,
+    b: rows.find((r) => r.partner_id === "partner_b")?.mood ?? null,
+  };
+}
+
+export interface WeeklyRecapItem {
+  kind: "memory" | "note" | "gallery";
+  title: string;
+  createdAt: string;
+}
+
+/** What got added in the last N days, for the Home "This week in us" Friday recap card. */
+export async function getWeeklyRecap(days = 7): Promise<WeeklyRecapItem[]> {
+  const supabase = getSupabaseServerClient();
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+  const [memoriesRes, notesRes, galleryRes] = await Promise.all([
+    supabase.from("memories").select("id,title,created_at").gte("created_at", since).order("created_at", { ascending: false }),
+    supabase.from("notes").select("id,body,created_at").gte("created_at", since).order("created_at", { ascending: false }),
+    supabase
+      .from("gallery")
+      .select("id,caption,memory_id,created_at")
+      .is("memory_id", null)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  const items: WeeklyRecapItem[] = [];
+  for (const m of memoriesRes.data ?? []) {
+    items.push({ kind: "memory", title: m.title || "A memory", createdAt: m.created_at });
+  }
+  for (const n of notesRes.data ?? []) {
+    items.push({ kind: "note", title: n.body.slice(0, 60), createdAt: n.created_at });
+  }
+  for (const g of galleryRes.data ?? []) {
+    items.push({ kind: "gallery", title: g.caption || "A new photo", createdAt: g.created_at });
+  }
+
+  items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return items;
 }
 
 export async function getPartnerNames(): Promise<{ a: string; b: string }> {

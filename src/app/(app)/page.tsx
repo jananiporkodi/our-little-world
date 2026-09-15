@@ -12,6 +12,9 @@ import {
   getRecentlyCompletedBucketItems,
   getNextPlan,
   getActiveTodos,
+  getTodaysMoods,
+  getWeeklyRecap,
+  getPartnerNames,
 } from "@/lib/data";
 import { daysBetween, dayOfYearIndex, formatFriendlyDate, toISTDateStr } from "@/lib/dates";
 import { getQuoteOfTheDay } from "@/lib/quotes";
@@ -19,6 +22,9 @@ import { getAffirmationOfTheDay } from "@/lib/affirmations";
 import { BUCKET_CATEGORIES } from "@/lib/types";
 import { PARTNER_COOKIE_NAME, isValidPartnerId } from "@/lib/auth";
 import HomeReveal from "@/components/home/HomeReveal";
+import MoodCheckIn from "@/components/home/MoodCheckIn";
+import MilestoneCelebration from "@/components/home/MilestoneCelebration";
+import SurpriseButton from "@/components/home/SurpriseButton";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +39,8 @@ export default async function HomePage() {
     recentlyCompleted,
     nextPlan,
     activeTodos,
+    todayMoods,
+    partnerNames,
   ] = await Promise.all([
     getSettingsMap(),
     getMemoryOfTheDay(),
@@ -43,7 +51,13 @@ export default async function HomePage() {
     getRecentlyCompletedBucketItems(3),
     getNextPlan(),
     getActiveTodos(4),
+    getTodaysMoods(),
+    getPartnerNames(),
   ]);
+
+  const istWeekday = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "Asia/Kolkata" }).format(new Date());
+  const isFriday = istWeekday === "Friday";
+  const weeklyRecap = isFriday ? await getWeeklyRecap(7) : [];
 
   const autoCountdowns = getAutoCountdowns(settings);
   const upcomingCountdown = autoCountdowns[0] ?? null;
@@ -78,6 +92,7 @@ export default async function HomePage() {
 
   return (
     <HomeReveal>
+      <MilestoneCelebration days={days} />
       <p className="font-hand text-4xl md:text-5xl leading-none mb-1">{greeting}</p>
       <p className="text-sm text-ink-soft mb-1">
         {days !== null ? `day ${days.toLocaleString()} together, and counting` : "add your start date in settings to see your day count"}
@@ -191,6 +206,24 @@ export default async function HomePage() {
         </div>
       </div>
 
+      <div className="mt-5">
+        <MoodCheckIn names={partnerNames} todayMoods={todayMoods} currentPartner={currentPartner} />
+      </div>
+
+      {isFriday && weeklyRecap.length > 0 && (
+        <div className="card-panel p-5 mt-5 border-l-4 border-accent/50">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft mb-3">This week in us 🗞️</p>
+          <ul className="space-y-1.5">
+            {weeklyRecap.slice(0, 8).map((item, i) => (
+              <li key={i} className="text-sm flex items-center gap-2">
+                <span>{item.kind === "memory" ? "📸" : item.kind === "note" ? "💌" : "🖼"}</span>
+                <span className="truncate">{item.title}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="card-panel p-4 mt-5">
         <p className="text-xs italic text-ink-soft">
           <span className="font-bold not-italic text-ink">Did you know? </span>
@@ -298,6 +331,7 @@ export default async function HomePage() {
             <p className="text-xs text-ink-soft">keep track of what you&apos;ve spent together</p>
           </div>
         </Link>
+        <SurpriseButton />
       </div>
     </HomeReveal>
   );

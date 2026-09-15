@@ -34,14 +34,14 @@ function personLabel(person: PartnerAssignee, names: { a: string; b: string }): 
 
 const STATE_DOT: Record<string, string> = {
   upcoming: "bg-ink/30",
-  completed: "bg-sage-deep",
+  completed: "bg-accent",
   missed: "bg-ink/20",
   cancelled: "bg-ink/10",
 };
 
 const STATE_CHIP: Record<string, string> = {
   upcoming: "bg-lavender text-bezel",
-  completed: "bg-sage text-sage-deep line-through decoration-1",
+  completed: "bg-blush text-accent",
   missed: "bg-black/5 dark:bg-white/10 text-ink-soft line-through",
   cancelled: "bg-black/5 dark:bg-white/10 text-ink-soft line-through",
 };
@@ -478,7 +478,7 @@ export default function PlansClient({ plans, partnerNames }: { plans: Plan[]; pa
                       const state = getPlanState(p);
                       return (
                         <span key={p.id} className={`text-[10px] leading-tight px-1.5 py-0.5 rounded truncate ${STATE_CHIP[state]}`}>
-                          {state === "completed" ? "✓ " : ""}
+                          {state === "completed" ? "♥ " : ""}
                           {p.title}
                         </span>
                       );
@@ -524,7 +524,7 @@ export default function PlansClient({ plans, partnerNames }: { plans: Plan[]; pa
 
       <div className="flex flex-wrap gap-3 mt-6 text-[11px] text-ink-soft">
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-ink/30" /> upcoming</span>
-        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-sage-deep" /> ✓ completed</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-accent" /> ♥ completed</span>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-ink/20" /> missed</span>
       </div>
 
