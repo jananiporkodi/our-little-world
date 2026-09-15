@@ -59,8 +59,14 @@ function ExpenseForm({
       className="card-panel p-4 space-y-2.5"
     >
       <p className="font-hand text-xl">{isEdit ? "Edit expense" : "Add an expense"}</p>
-      <input name="title" defaultValue={expense?.title} placeholder="Groceries, dinner, cab…" className="input-field" required />
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          name="title"
+          defaultValue={expense?.title}
+          placeholder="Groceries, dinner, cab…"
+          className="input-field flex-1 min-w-[160px]"
+          required
+        />
         <input
           type="number"
           name="amount"
@@ -68,30 +74,37 @@ function ExpenseForm({
           step="0.01"
           min="0"
           placeholder="Amount (₹)"
-          className="input-field"
+          className="input-field !w-28"
           required
         />
-        <input type="date" name="expenseDate" defaultValue={expense?.expense_date ?? todayIST()} className="input-field" required />
-      </div>
-      <div className="grid grid-cols-2 gap-2.5">
-        <select name="category" defaultValue={expense?.category ?? "other"} className="input-field">
+        <input
+          type="date"
+          name="expenseDate"
+          defaultValue={expense?.expense_date ?? todayIST()}
+          className="input-field !w-[150px]"
+          required
+        />
+        <select name="category" defaultValue={expense?.category ?? "other"} className="input-field !w-auto">
           {EXPENSE_CATEGORIES.map((c) => (
             <option key={c.key} value={c.key}>
               {c.emoji} {c.label}
             </option>
           ))}
         </select>
-        <select name="paidBy" defaultValue={expense?.paid_by ?? defaultPaidBy} className="input-field">
+        <select name="paidBy" defaultValue={expense?.paid_by ?? defaultPaidBy} className="input-field !w-auto">
           <option value="partner_a">Paid by {names.a}</option>
           <option value="partner_b">Paid by {names.b}</option>
         </select>
-      </div>
-      <label className="flex items-center gap-2 text-sm text-ink-soft">
-        <input type="checkbox" name="isShared" defaultChecked={expense?.is_shared ?? true} className="w-4 h-4" />
-        Split this equally between us
-      </label>
-      <input name="notes" defaultValue={expense?.notes ?? ""} placeholder="Notes (optional)" className="input-field" />
-      <div className="flex gap-2 pt-1">
+        <input
+          name="notes"
+          defaultValue={expense?.notes ?? ""}
+          placeholder="Notes (optional)"
+          className="input-field flex-1 min-w-[140px]"
+        />
+        <label className="flex items-center gap-1.5 text-xs text-ink-soft whitespace-nowrap">
+          <input type="checkbox" name="isShared" defaultChecked={expense?.is_shared ?? true} className="w-4 h-4" />
+          split equally
+        </label>
         <SubmitButton label={isEdit ? "save changes" : "add expense"} pendingLabel={isEdit ? "Saving…" : "Adding…"} />
         <button type="button" onClick={onDone} className="btn-ghost !py-2 !px-3 text-sm">
           cancel
