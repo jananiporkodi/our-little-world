@@ -7,12 +7,12 @@ import type {
   GalleryMedia,
   Note,
   TimelineEvent,
-  LoveJarEntry,
   Setting,
   Countdown,
   Plan,
   Todo,
   Place,
+  Expense,
 } from "./types";
 
 export async function getSettingsMap(): Promise<Record<string, unknown>> {
@@ -114,20 +114,15 @@ export async function getTimelineEvents(): Promise<TimelineEvent[]> {
   return data as TimelineEvent[];
 }
 
-export async function getLoveJarEntries(): Promise<LoveJarEntry[]> {
+export async function getExpenses(): Promise<Expense[]> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
-    .from("love_jar")
+    .from("expenses")
     .select("*")
+    .order("expense_date", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data as LoveJarEntry[];
-}
-
-export async function getRandomLoveJarEntry(): Promise<LoveJarEntry | null> {
-  const entries = await getLoveJarEntries();
-  if (entries.length === 0) return null;
-  return entries[dayOfYearIndex(entries.length)];
+  return data as Expense[];
 }
 
 export async function getCountdowns(): Promise<Countdown[]> {
@@ -190,7 +185,7 @@ import type { ActivityItem } from "./activity-meta";
 export async function getRecentActivity(limit = 5): Promise<ActivityItem[]> {
   const supabase = getSupabaseServerClient();
 
-  const [memoriesRes, plansRes, bucketRes, notesRes, galleryRes, todosRes, placesRes] = await Promise.all([
+  const [memoriesRes, plansRes, bucketRes, notesRes, galleryRes, todosRes, placesRes, expensesRes] = await Promise.all([
     supabase.from("memories").select("id,title,created_at").order("created_at", { ascending: false }).limit(limit),
     supabase.from("plans").select("id,title,created_at").order("created_at", { ascending: false }).limit(limit),
     supabase.from("bucket_items").select("id,title,created_at").order("created_at", { ascending: false }).limit(limit),
@@ -203,6 +198,7 @@ export async function getRecentActivity(limit = 5): Promise<ActivityItem[]> {
       .limit(limit),
     supabase.from("todos").select("id,title,created_at").order("created_at", { ascending: false }).limit(limit),
     supabase.from("places").select("id,name,created_at").order("created_at", { ascending: false }).limit(limit),
+    supabase.from("expenses").select("id,title,created_at").order("created_at", { ascending: false }).limit(limit),
   ]);
 
   const items: ActivityItem[] = [];
@@ -226,6 +222,9 @@ export async function getRecentActivity(limit = 5): Promise<ActivityItem[]> {
   }
   for (const pl of placesRes.data ?? []) {
     items.push({ id: `place-${pl.id}`, kind: "place", title: pl.name, createdAt: pl.created_at, href: "/places" });
+  }
+  for (const ex of expensesRes.data ?? []) {
+    items.push({ id: `expense-${ex.id}`, kind: "expense", title: ex.title, createdAt: ex.created_at, href: "/expenses" });
   }
 
   items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));

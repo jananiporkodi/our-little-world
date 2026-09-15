@@ -5,7 +5,6 @@ import {
   getSettingsMap,
   getMemoryOfTheDay,
   getRandomFavoritePhoto,
-  getRandomLoveJarEntry,
   getRandomOldNote,
   getStats,
   getThisDayEntries,
@@ -14,7 +13,7 @@ import {
   getNextPlan,
   getActiveTodos,
 } from "@/lib/data";
-import { daysBetween, formatFriendlyDate } from "@/lib/dates";
+import { daysBetween, dayOfYearIndex, formatFriendlyDate, toISTDateStr } from "@/lib/dates";
 import { getQuoteOfTheDay } from "@/lib/quotes";
 import { getAffirmationOfTheDay } from "@/lib/affirmations";
 import { BUCKET_CATEGORIES } from "@/lib/types";
@@ -28,7 +27,6 @@ export default async function HomePage() {
     settings,
     memoryOfDay,
     favoritePhoto,
-    loveJarEntry,
     randomNote,
     stats,
     thisDay,
@@ -39,7 +37,6 @@ export default async function HomePage() {
     getSettingsMap(),
     getMemoryOfTheDay(),
     getRandomFavoritePhoto(),
-    getRandomLoveJarEntry(),
     getRandomOldNote(),
     getStats(),
     getThisDayEntries(),
@@ -48,7 +45,21 @@ export default async function HomePage() {
     getActiveTodos(4),
   ]);
 
-  const upcomingCountdown = getAutoCountdowns(settings)[0] ?? null;
+  const autoCountdowns = getAutoCountdowns(settings);
+  const upcomingCountdown = autoCountdowns[0] ?? null;
+  const missingBirthdays = !settings.partner_a_birthday || !settings.partner_b_birthday;
+
+  const facts = [
+    stats.bucketTotal > 0
+      ? `you've completed ${stats.bucketCompleted} of ${stats.bucketTotal} bucket list items 🪣`
+      : "add your first bucket list item to start tracking progress 🪣",
+    `you've saved ${stats.photosCount} photos together so far 📸`,
+    `you've written ${stats.notesCount} little notes to each other 💌`,
+    stats.countriesCount > 0
+      ? `you've made memories in ${stats.countriesCount} countries so far 🌍`
+      : "tag a memory with a country to start tracking your travels 🌍",
+  ];
+  const dailyFact = facts[dayOfYearIndex(facts.length)];
 
   const startDate = (settings.relationship_start_date as string) || null;
   const days = startDate ? daysBetween(startDate) : null;
@@ -148,10 +159,8 @@ export default async function HomePage() {
           <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft mt-6 mb-2">A note from the past</p>
           {randomNote ? (
             <p className="text-sm text-ink-soft italic">&ldquo;{randomNote.body}&rdquo;</p>
-          ) : loveJarEntry ? (
-            <p className="text-sm text-ink-soft italic">&ldquo;{loveJarEntry.body}&rdquo;</p>
           ) : (
-            <p className="text-sm text-ink-soft">Write your first note, or add a tiny moment on the Us page.</p>
+            <p className="text-sm text-ink-soft">Write your first note in the Love Jar.</p>
           )}
         </div>
 
@@ -179,10 +188,46 @@ export default async function HomePage() {
               <dd className="font-bold">{stats.notesCount}</dd>
             </div>
           </dl>
-          <Link href="/us" className="btn-ghost mt-4 w-full justify-center text-xs">
-            see full dashboard
-          </Link>
         </div>
+      </div>
+
+      <div className="card-panel p-4 mt-5">
+        <p className="text-xs italic text-ink-soft">
+          <span className="font-bold not-italic text-ink">Did you know? </span>
+          {dailyFact}
+        </p>
+      </div>
+
+      <div className="card-panel p-5 mt-5">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft mb-3">Countdowns ⏳</p>
+        <ul className="space-y-2">
+          {autoCountdowns.length === 0 && (
+            <li className="text-sm text-ink-soft">
+              Add your relationship start date and birthdays in{" "}
+              <Link href="/settings" className="text-accent underline">
+                Settings
+              </Link>{" "}
+              to see countdowns here.
+            </li>
+          )}
+          {autoCountdowns.map((c) => (
+            <li key={c.key} className="flex justify-between text-sm">
+              <span>
+                {c.emoji} {c.title}
+              </span>
+              <span className="font-bold text-ink-soft">{c.daysRemaining === 0 ? "today!" : `${c.daysRemaining}d`}</span>
+            </li>
+          ))}
+        </ul>
+        {missingBirthdays && autoCountdowns.length > 0 && (
+          <p className="text-[11px] text-ink-soft mt-2">
+            Add both birthdays in{" "}
+            <Link href="/settings" className="text-accent underline">
+              Settings
+            </Link>{" "}
+            to see them here too.
+          </p>
+        )}
       </div>
 
       <div className="grid gap-5 md:grid-cols-2 mt-5">
@@ -217,7 +262,7 @@ export default async function HomePage() {
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-ink truncate">{item.title}</p>
                       {item.completed_at && (
-                        <p className="text-[11px] text-ink-soft">{formatFriendlyDate(item.completed_at.slice(0, 10))}</p>
+                        <p className="text-[11px] text-ink-soft">{formatFriendlyDate(toISTDateStr(item.completed_at))}</p>
                       )}
                     </div>
                   </div>
@@ -240,10 +285,17 @@ export default async function HomePage() {
           </div>
         </Link>
         <Link href="/notes" className="card-panel p-4 flex items-center gap-3 hover:-translate-y-0.5 transition">
-          <span className="text-2xl">💌</span>
+          <span className="text-2xl">🫙</span>
           <div>
             <p className="font-bold text-sm">Write a note</p>
             <p className="text-xs text-ink-soft">tell them something small and true</p>
+          </div>
+        </Link>
+        <Link href="/expenses" className="card-panel p-4 flex items-center gap-3 hover:-translate-y-0.5 transition">
+          <span className="text-2xl">💰</span>
+          <div>
+            <p className="font-bold text-sm">Log an expense</p>
+            <p className="text-xs text-ink-soft">keep track of what you&apos;ve spent together</p>
           </div>
         </Link>
       </div>

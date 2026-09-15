@@ -6,7 +6,7 @@
  */
 export interface ActivityItem {
   id: string;
-  kind: "memory" | "plan" | "bucket" | "note" | "gallery" | "todo" | "place";
+  kind: "memory" | "plan" | "bucket" | "note" | "gallery" | "todo" | "place" | "expense";
   title: string;
   createdAt: string;
   href: string;
@@ -20,6 +20,7 @@ const ACTIVITY_META: Record<ActivityItem["kind"], { emoji: string; verb: string 
   gallery: { emoji: "🖼", verb: "added a photo to the gallery" },
   todo: { emoji: "✅", verb: "added a to-do" },
   place: { emoji: "📍", verb: "added a place" },
+  expense: { emoji: "💰", verb: "added an expense" },
 };
 
 export function activityMeta(kind: ActivityItem["kind"]) {

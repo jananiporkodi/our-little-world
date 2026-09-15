@@ -9,8 +9,8 @@ export default async function NotesPage() {
 
   return (
     <div>
-      <p className="font-hand text-4xl md:text-5xl leading-none mb-1">Notes to each other 💌</p>
-      <p className="text-sm text-ink-soft mb-6">a shared journal, just for us</p>
+      <p className="font-hand text-4xl md:text-5xl leading-none mb-1">Love Jar 🫙</p>
+      <p className="text-sm text-ink-soft mb-6">little notes to each other, saved for later</p>
 
       <div className="mb-6">
         <AddNoteForm />

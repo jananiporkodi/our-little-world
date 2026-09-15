@@ -7,7 +7,7 @@ import type { PartnerAssignee, Plan } from "@/lib/types";
 import { PLAN_CATEGORIES } from "@/lib/types";
 import { formatFriendlyDate, daysUntil } from "@/lib/dates";
 import { getPlanState, formatTimeRange } from "@/lib/plans";
-import { addPlan, markPlanStatus, deletePlan, convertPlanToMemory } from "@/app/(app)/plans/actions";
+import { addPlan, markPlanStatus, deletePlan, convertPlanToMemory, updatePlan, reschedulePlan } from "@/app/(app)/plans/actions";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = [
@@ -108,6 +108,85 @@ function AddPlanForm({ defaultDate, names, onDone }: { defaultDate: string; name
   );
 }
 
+function EditPlanForm({ plan, names, onDone }: { plan: Plan; names: { a: string; b: string }; onDone: () => void }) {
+  const formRef = useRef<HTMLFormElement>(null);
+  return (
+    <form
+      ref={formRef}
+      action={async (formData) => {
+        formData.set("planId", plan.id);
+        await updatePlan(formData);
+        onDone();
+      }}
+      className="card-panel p-4 space-y-2.5 border-2 border-accent/30"
+    >
+      <p className="font-hand text-xl">Edit plan</p>
+      <input name="title" defaultValue={plan.title} placeholder="Dinner date" className="input-field" required />
+      <textarea name="description" defaultValue={plan.description ?? ""} placeholder="Any details? (optional)" className="input-field" rows={2} />
+      <div className="grid grid-cols-2 gap-2.5">
+        <input type="date" name="planDate" defaultValue={plan.plan_date} className="input-field" required />
+        <input name="location" defaultValue={plan.location ?? ""} placeholder="Location (optional)" className="input-field" />
+      </div>
+      <div className="grid grid-cols-2 gap-2.5">
+        <input type="time" name="startTime" defaultValue={plan.start_time ?? ""} className="input-field" />
+        <input type="time" name="endTime" defaultValue={plan.end_time ?? ""} className="input-field" />
+      </div>
+      <div className="grid grid-cols-2 gap-2.5">
+        <select name="category" defaultValue={plan.category ?? ""} className="input-field">
+          <option value="">category (optional)</option>
+          {PLAN_CATEGORIES.map((c) => (
+            <option key={c.key} value={c.key}>
+              {c.emoji} {c.label}
+            </option>
+          ))}
+        </select>
+        <select name="person" defaultValue={plan.person} className="input-field">
+          <option value="both">Both</option>
+          <option value="partner_a">{names.a}</option>
+          <option value="partner_b">{names.b}</option>
+        </select>
+      </div>
+      <select name="reminderMinutesBefore" defaultValue={plan.reminder_minutes_before ? String(plan.reminder_minutes_before) : ""} className="input-field">
+        <option value="">no reminder</option>
+        <option value="60">1 hour before</option>
+        <option value="1440">1 day before</option>
+        <option value="10080">1 week before</option>
+      </select>
+      <div className="flex gap-2 pt-1">
+        <SubmitButton label="save changes" pendingLabel="Saving…" />
+        <button type="button" onClick={onDone} className="btn-ghost !py-2 !px-3 text-sm">
+          cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function RescheduleRow({ plan, onDone }: { plan: Plan; onDone: () => void }) {
+  const [date, setDate] = useState(plan.plan_date);
+  const [pending, startTransition] = useTransition();
+  return (
+    <div className="flex items-center gap-1.5 mt-1.5">
+      <input
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        className="input-field !py-1 !px-2 text-xs flex-1"
+      />
+      <button
+        disabled={pending || !date}
+        onClick={() => startTransition(async () => { await reschedulePlan(plan.id, date); onDone(); })}
+        className="btn-ghost !py-1 !px-2 text-[11px] text-accent"
+      >
+        move
+      </button>
+      <button onClick={onDone} className="btn-ghost !py-1 !px-2 text-[11px]">
+        cancel
+      </button>
+    </div>
+  );
+}
+
 function ConvertToMemoryForm({ plan, onDone }: { plan: Plan; onDone: () => void }) {
   const formRef = useRef<HTMLFormElement>(null);
   return (
@@ -147,6 +226,8 @@ function ConvertToMemoryForm({ plan, onDone }: { plan: Plan; onDone: () => void 
 function PlanDetailRow({ plan, names }: { plan: Plan; names: { a: string; b: string } }) {
   const [pending, startTransition] = useTransition();
   const [converting, setConverting] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
   const state = getPlanState(plan);
   const remaining = daysUntil(plan.plan_date);
   const timeRange = formatTimeRange(plan.start_time, plan.end_time);
@@ -154,6 +235,9 @@ function PlanDetailRow({ plan, names }: { plan: Plan; names: { a: string; b: str
 
   if (converting) {
     return <ConvertToMemoryForm plan={plan} onDone={() => setConverting(false)} />;
+  }
+  if (editing) {
+    return <EditPlanForm plan={plan} names={names} onDone={() => setEditing(false)} />;
   }
 
   return (
@@ -180,12 +264,37 @@ function PlanDetailRow({ plan, names }: { plan: Plan; names: { a: string; b: str
               </span>
             )}
           </div>
+          {rescheduling && <RescheduleRow plan={plan} onDone={() => setRescheduling(false)} />}
         </div>
         <div className="flex flex-col gap-1.5 flex-shrink-0">
           {plan.memory_id && (
             <Link href={`/memories?open=${plan.memory_id}`} className="btn-ghost !py-1 !px-2 text-[11px] text-accent">
               view memory
             </Link>
+          )}
+          <button onClick={() => setEditing(true)} className="btn-ghost !py-1 !px-2 text-[11px]">
+            edit
+          </button>
+          <button onClick={() => setRescheduling((v) => !v)} className="btn-ghost !py-1 !px-2 text-[11px]">
+            move
+          </button>
+          {plan.status !== "done" && !plan.memory_id && (
+            <button
+              disabled={pending}
+              onClick={() => startTransition(() => markPlanStatus(plan.id, "done"))}
+              className="btn-ghost !py-1 !px-2 text-[11px] text-accent"
+            >
+              mark done
+            </button>
+          )}
+          {state !== "missed" && plan.status === "planned" && (
+            <button
+              disabled={pending}
+              onClick={() => startTransition(() => markPlanStatus(plan.id, "missed"))}
+              className="btn-ghost !py-1 !px-2 text-[11px]"
+            >
+              mark missed
+            </button>
           )}
           {plan.status === "planned" && (
             <>
@@ -203,7 +312,7 @@ function PlanDetailRow({ plan, names }: { plan: Plan; names: { a: string; b: str
               </button>
             </>
           )}
-          {plan.status === "cancelled" && (
+          {(plan.status === "cancelled" || plan.status === "missed" || plan.status === "done") && !plan.memory_id && (
             <button
               disabled={pending}
               onClick={() => startTransition(() => markPlanStatus(plan.id, "planned"))}
