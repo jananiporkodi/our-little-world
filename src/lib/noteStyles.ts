@@ -1,28 +1,25 @@
 /**
- * Cute, journal-sticker-style frames for Love Jar notes - pastel background, a soft
- * dashed/scalloped border, an optional washi-tape strip, and a small doodle accent.
- * Picked deterministically from the note's id so the same note always keeps the same
+ * Hand-drawn-doodle-style frames for Love Jar notes - a dashed/dotted border plus a
+ * small original SVG decoration (clip, paper plane, sun, bow, or hanging stars).
+ * Picked deterministically from the note's id so a given note always keeps the same
  * "skin" (and the card + its open modal always match), while the grid as a whole
  * cycles through a handful of looks for variety.
  */
+export type NoteDoodleVariant = "clip" | "planeHearts" | "sunCloud" | "bowDots" | "moonStars";
+
 export type NoteStyle = {
   bg: string;
-  border: string;
-  tape?: string;
-  tapeRotate?: string;
-  corner: string;
-  cornerClass: string;
+  borderClass: string;
+  lineColor: string;
+  doodle: NoteDoodleVariant;
 };
 
 export const NOTE_STYLES: NoteStyle[] = [
-  { bg: "#F6F1FA", border: "border-2 border-dashed border-[#C9AEE0] rounded-[28px]", corner: "🪻", cornerClass: "bottom-2.5 left-2.5" },
-  { bg: "#FDF1F2", border: "border-2 border-[#F3B6C0] rounded-2xl", tape: "#F3B6C0", tapeRotate: "-rotate-3", corner: "🌷", cornerClass: "bottom-2.5 right-2.5" },
-  { bg: "#EFF6FC", border: "border-2 border-dashed border-[#A9D2EF] rounded-[32px]", corner: "☁️", cornerClass: "top-2.5 right-2.5" },
-  { bg: "#FBF3E4", border: "border-2 border-[#E3C58C] rounded-2xl", tape: "#E9CE9C", tapeRotate: "rotate-2", corner: "🧸", cornerClass: "bottom-2.5 right-2.5" },
-  { bg: "#F1F7EC", border: "border-2 border-dashed border-[#B7D9A0] rounded-[30px]", corner: "🌼", cornerClass: "bottom-2.5 right-2.5" },
-  { bg: "#FCEEF0", border: "border-2 border-[#F0AFC0] rounded-2xl", corner: "🎀", cornerClass: "top-2.5 right-2.5" },
-  { bg: "#FDF7E3", border: "border-2 border-[#F0D77E] rounded-2xl", corner: "⭐", cornerClass: "top-2.5 left-2.5" },
-  { bg: "#F6F0FB", border: "border-2 border-[#CBAEE3] rounded-2xl", tape: "#CBAEE3", tapeRotate: "-rotate-2", corner: "🌸", cornerClass: "bottom-2.5 right-2.5" },
+  { bg: "#FFFDF8", borderClass: "border-2 border-dashed border-[#4a3c3c] rounded-xl", lineColor: "rgba(74,60,60,0.08)", doodle: "clip" },
+  { bg: "#FFFDF8", borderClass: "border-2 border-dashed border-[#4a3c3c] rounded-2xl", lineColor: "rgba(74,60,60,0.08)", doodle: "planeHearts" },
+  { bg: "#F5FAFF", borderClass: "border-2 border-[#8FC1E8] rounded-[28px]", lineColor: "rgba(56,100,140,0.08)", doodle: "sunCloud" },
+  { bg: "#FFF7FA", borderClass: "border-2 border-dotted border-[#F3AFC1] rounded-2xl", lineColor: "rgba(140,60,90,0.08)", doodle: "bowDots" },
+  { bg: "#FFFDF3", borderClass: "border-2 border-dashed border-[#E8CB74] rounded-2xl", lineColor: "rgba(140,110,30,0.08)", doodle: "moonStars" },
 ];
 
 export function styleForId(id: string): NoteStyle {

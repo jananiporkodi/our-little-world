@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import type { Note } from "@/lib/types";
 import { styleForId } from "@/lib/noteStyles";
+import NoteDoodle from "./NoteDoodles";
 
 function fullDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -28,21 +29,21 @@ export default function NoteModal({ note, onClose }: { note: Note; onClose: () =
         transition={{ duration: 0.2 }}
       >
         <motion.div
-          className={`w-full max-w-md max-h-[85vh] overflow-y-auto p-6 shadow-2xl relative ${style.border}`}
-          style={{ backgroundColor: style.bg, transformOrigin: "top center" }}
+          className={`w-full max-w-md max-h-[85vh] overflow-y-auto p-7 pt-9 shadow-2xl relative ${style.borderClass}`}
+          style={{
+            backgroundColor: style.bg,
+            backgroundImage: `repeating-linear-gradient(${style.bg} 0px, ${style.bg} 27px, ${style.lineColor} 28px)`,
+            transformOrigin: "top center",
+          }}
           initial={{ scaleY: 0.05, rotateX: -80, opacity: 0, rotate: 0 }}
           animate={{ scaleY: 1, rotateX: 0, opacity: 1, rotate: -0.6 }}
           exit={{ scaleY: 0.05, opacity: 0 }}
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           onClick={(e) => e.stopPropagation()}
         >
-          {style.tape && (
-            <span
-              className={`absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-5 rounded-sm shadow-sm pointer-events-none ${style.tapeRotate ?? ""}`}
-              style={{ backgroundColor: style.tape, opacity: 0.85 }}
-            />
-          )}
-          <span className={`absolute text-xl pointer-events-none ${style.cornerClass}`}>{style.corner}</span>
+          <div className="pointer-events-none">
+            <NoteDoodle variant={style.doodle} />
+          </div>
 
           <button
             onClick={onClose}
@@ -51,7 +52,7 @@ export default function NoteModal({ note, onClose }: { note: Note; onClose: () =
           >
             ✕
           </button>
-          <p className="font-patrick text-lg text-ink leading-[28px] whitespace-pre-wrap pr-8 pt-1">{note.body}</p>
+          <p className="font-patrick text-lg text-ink leading-[28px] whitespace-pre-wrap pr-8">{note.body}</p>
           <div className="flex justify-between items-center mt-3 text-[11px] text-ink-soft">
             <span>{note.author ? `— ${note.author}` : "— us"}</span>
             <span>

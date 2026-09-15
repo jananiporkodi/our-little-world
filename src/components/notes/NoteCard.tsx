@@ -4,49 +4,49 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import type { Note } from "@/lib/types";
 import NoteModal from "./NoteModal";
+import NoteDoodle from "./NoteDoodles";
 import { playPaperSound } from "@/lib/paperSound";
 import { styleForId } from "@/lib/noteStyles";
 
+function timeAgo(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "Asia/Kolkata" });
+}
+
 export default function NoteCard({ note }: { note: Note }) {
   const [open, setOpen] = useState(false);
-  const [unfolding, setUnfolding] = useState(false);
   const style = styleForId(note.id);
 
   function handleOpen() {
     playPaperSound();
-    setUnfolding(true);
-    setTimeout(() => {
-      setOpen(true);
-      setUnfolding(false);
-    }, 240);
+    setOpen(true);
   }
 
   return (
     <>
-      <div style={{ perspective: 700 }}>
-        <motion.button
-          onClick={handleOpen}
-          whileHover={{ y: -3 }}
-          animate={unfolding ? { scaleY: 0.06, rotateX: 75, opacity: 0.35 } : { scaleY: 1, rotateX: 0, opacity: 1 }}
-          transition={{ duration: 0.24, ease: "easeIn" }}
-          style={{ transformOrigin: "top center", backgroundColor: style.bg }}
-          className={`relative w-full aspect-square shadow-[0_3px_10px_rgba(20,20,20,0.08)] text-left ${style.border}`}
-        >
-          {style.tape && (
-            <span
-              className={`absolute -top-2.5 left-1/2 -translate-x-1/2 w-10 h-4 rounded-sm shadow-sm ${style.tapeRotate ?? ""}`}
-              style={{ backgroundColor: style.tape, opacity: 0.85 }}
-            />
-          )}
-          <span className={`absolute text-lg ${style.cornerClass}`}>{style.corner}</span>
+      <motion.button
+        onClick={handleOpen}
+        whileHover={{ y: -3 }}
+        whileTap={{ scale: 0.97 }}
+        style={{
+          backgroundColor: style.bg,
+          backgroundImage: `repeating-linear-gradient(${style.bg} 0px, ${style.bg} 25px, ${style.lineColor} 26px)`,
+        }}
+        className={`relative w-full aspect-[4/3] p-4 pt-6 flex flex-col text-left shadow-[0_3px_10px_rgba(20,20,20,0.08)] ${style.borderClass}`}
+      >
+        <NoteDoodle variant={style.doodle} />
 
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-            <span className="text-2xl">💌</span>
-            <span className="text-[11px] text-ink-soft font-semibold tracking-wide">tap to open</span>
-            <span className="text-[10px] text-ink-soft/60">{note.author || "us"}</span>
-          </div>
-        </motion.button>
-      </div>
+        <p className="font-patrick text-base text-ink leading-[26px] line-clamp-4 whitespace-pre-wrap flex-1">
+          {note.body}
+        </p>
+
+        <div className="flex justify-between items-center pt-1.5 text-[10px] text-ink-soft/80">
+          <span>{note.author ? `— ${note.author}` : "— us"}</span>
+          <span>
+            {timeAgo(note.created_at)} {note.mood ? `· ${note.mood}` : ""}
+          </span>
+        </div>
+      </motion.button>
 
       {open && <NoteModal note={note} onClose={() => setOpen(false)} />}
     </>
