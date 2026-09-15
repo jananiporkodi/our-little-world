@@ -1,6 +1,8 @@
 import "server-only";
+import { cookies } from "next/headers";
 import { getSupabaseServerClient } from "./supabase/server";
 import { dayOfYearIndex, daysUntil, nextAnniversary, ordinal, todayIST } from "./dates";
+import { PARTNER_COOKIE_NAME, isValidPartnerId } from "./auth";
 import type {
   BucketItem,
   Memory,
@@ -14,6 +16,20 @@ import type {
   Place,
   Expense,
 } from "./types";
+
+/** How many kisses the current device's partner has received in total - shown as a little badge on the kiss button. */
+export async function getReceivedKissCount(): Promise<number> {
+  const actor = cookies().get(PARTNER_COOKIE_NAME)?.value;
+  if (!isValidPartnerId(actor)) return 0;
+
+  const supabase = getSupabaseServerClient();
+  const { count, error } = await supabase
+    .from("kisses")
+    .select("id", { count: "exact", head: true })
+    .eq("receiver_id", actor);
+  if (error) return 0;
+  return count ?? 0;
+}
 
 export async function getSettingsMap(): Promise<Record<string, unknown>> {
   const supabase = getSupabaseServerClient();

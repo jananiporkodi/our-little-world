@@ -8,13 +8,18 @@ import { PARTNER_COOKIE_NAME, isValidPartnerId } from "@/lib/auth";
 import { todayIST } from "@/lib/dates";
 import { getMemories, getNotes } from "@/lib/data";
 
-/** An instant, no-typing-required nudge to the other partner's phone. */
+/** An instant, no-typing-required nudge to the other partner's phone. Also logged so we can show a running "kisses received" count. */
 export async function sendKiss(): Promise<{ sent: boolean }> {
   const actor = cookies().get(PARTNER_COOKIE_NAME)?.value;
   if (!isValidPartnerId(actor)) return { sent: false };
 
+  const receiver = actor === "partner_a" ? "partner_b" : "partner_a";
+  const supabase = getSupabaseServerClient();
+  await supabase.from("kisses").insert({ sender_id: actor, receiver_id: receiver });
+
   const actorName = await getActorName();
   await notifyOtherPartner({ title: `${actorName} sent you a kiss 💋`, body: "Thinking of you.", url: "/" });
+  revalidatePath("/", "layout");
   return { sent: true };
 }
 
