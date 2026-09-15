@@ -1,9 +1,11 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Note } from "@/lib/types";
 import { styleForId } from "@/lib/noteStyles";
 import NoteDoodle from "./NoteDoodles";
+import { toggleNotePin } from "@/app/(app)/notes/actions";
 
 function fullDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -17,6 +19,16 @@ function fullDate(dateStr: string): string {
 
 export default function NoteModal({ note, onClose }: { note: Note; onClose: () => void }) {
   const style = styleForId(note.id);
+  const [pinned, setPinned] = useState(note.pinned);
+  const [pending, startTransition] = useTransition();
+
+  function handlePinToggle() {
+    const next = !pinned;
+    setPinned(next);
+    startTransition(async () => {
+      await toggleNotePin(note.id, next);
+    });
+  }
 
   return (
     <AnimatePresence>
@@ -44,13 +56,22 @@ export default function NoteModal({ note, onClose }: { note: Note; onClose: () =
           <NoteDoodle variant={style.doodle} />
 
           <button
+            onClick={handlePinToggle}
+            disabled={pending}
+            title={pinned ? "Unpin from the wall" : "Pin to the wall"}
+            className="absolute top-3 left-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-sm shadow"
+          >
+            {pinned ? "📌" : <span className="opacity-40">📌</span>}
+          </button>
+
+          <button
             onClick={onClose}
             className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-sm shadow"
             aria-label="Close"
           >
             ✕
           </button>
-          <p className="font-patrick text-lg text-ink leading-[28px] whitespace-pre-wrap pr-8">{note.body}</p>
+          <p className="font-patrick text-lg text-ink leading-[28px] whitespace-pre-wrap pr-8 pt-1">{note.body}</p>
           <div className="flex justify-between items-center mt-3 text-[11px] text-ink-soft">
             <span>{note.author ? `— ${note.author}` : "— us"}</span>
             <span>

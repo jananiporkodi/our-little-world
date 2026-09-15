@@ -51,6 +51,7 @@ export interface Note {
   author: string | null;
   body: string;
   mood: string | null;
+  pinned: boolean;
   created_at: string;
 }
 
