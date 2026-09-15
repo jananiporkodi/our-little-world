@@ -32,15 +32,15 @@ export default function NoteCard({ note }: { note: Note }) {
           backgroundColor: style.bg,
           backgroundImage: `repeating-linear-gradient(${style.bg} 0px, ${style.bg} 25px, ${style.lineColor} 26px)`,
         }}
-        className={`relative w-full aspect-[4/3] p-4 pt-6 flex flex-col text-left shadow-[0_3px_10px_rgba(20,20,20,0.08)] ${style.borderClass}`}
+        className={`relative w-full aspect-square p-2.5 pt-4 flex flex-col text-left shadow-[0_3px_10px_rgba(20,20,20,0.08)] ${style.borderClass}`}
       >
-        <NoteDoodle variant={style.doodle} />
+        <NoteDoodle variant={style.doodle} size={0.65} />
 
-        <p className="font-patrick text-base text-ink leading-[26px] line-clamp-4 whitespace-pre-wrap flex-1">
+        <p className="font-patrick text-sm text-ink leading-[20px] line-clamp-3 whitespace-pre-wrap flex-1">
           {note.body}
         </p>
 
-        <div className="flex justify-between items-center pt-1.5 text-[10px] text-ink-soft/80">
+        <div className="flex justify-between items-center pt-1 text-[9px] text-ink-soft/80">
           <span>{note.author ? `— ${note.author}` : "— us"}</span>
           <span>
             {timeAgo(note.created_at)} {note.mood ? `· ${note.mood}` : ""}

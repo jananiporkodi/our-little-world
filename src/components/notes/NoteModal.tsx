@@ -41,9 +41,7 @@ export default function NoteModal({ note, onClose }: { note: Note; onClose: () =
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="pointer-events-none">
-            <NoteDoodle variant={style.doodle} />
-          </div>
+          <NoteDoodle variant={style.doodle} />
 
           <button
             onClick={onClose}

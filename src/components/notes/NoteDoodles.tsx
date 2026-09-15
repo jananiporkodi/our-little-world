@@ -108,8 +108,7 @@ function Moon({ className }: { className?: string }) {
   );
 }
 
-/** Absolutely-positioned decorative doodles for a note frame - the parent must be `relative`. */
-export default function NoteDoodle({ variant }: { variant: NoteDoodleVariant }) {
+function doodleFor(variant: NoteDoodleVariant) {
   switch (variant) {
     case "clip":
       return (
@@ -157,4 +156,21 @@ export default function NoteDoodle({ variant }: { variant: NoteDoodleVariant }) 
     default:
       return null;
   }
+}
+
+/**
+ * Absolutely-positioned decorative doodles for a note frame - the parent must be
+ * `relative`. `size` uniformly scales the whole decoration layer (icons + their
+ * positions together) so the same variant can shrink to fit a small card or scale
+ * back up for the full-size modal.
+ */
+export default function NoteDoodle({ variant, size = 1 }: { variant: NoteDoodleVariant; size?: number }) {
+  return (
+    <div
+      className="absolute inset-0 pointer-events-none"
+      style={size !== 1 ? { transform: `scale(${size})` } : undefined}
+    >
+      {doodleFor(variant)}
+    </div>
+  );
 }
