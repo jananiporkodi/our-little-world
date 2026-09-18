@@ -35,6 +35,23 @@ export async function getSentReactionCounts(): Promise<Record<ReactionType, numb
   return counts;
 }
 
+/** How many of each reaction the current device's partner has RECEIVED, all-time - paired with getSentReactionCounts so each floating icon can show both sides. */
+export async function getReceivedReactionCounts(): Promise<Record<ReactionType, number>> {
+  const empty = Object.fromEntries(REACTION_TYPES.map((r) => [r.key, 0])) as Record<ReactionType, number>;
+  const actor = cookies().get(PARTNER_COOKIE_NAME)?.value;
+  if (!isValidPartnerId(actor)) return empty;
+
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase.from("kisses").select("type").eq("receiver_id", actor);
+  if (error || !data) return empty;
+
+  const counts = { ...empty };
+  for (const row of data as { type: string }[]) {
+    if (row.type in counts) counts[row.type as ReactionType] += 1;
+  }
+  return counts;
+}
+
 /** Cumulative all-time totals of each reaction type, received by each partner - for the Home "little nudges" summary, so both partners can see both sides, not just their own. */
 export async function getReactionTotals(): Promise<Record<ReactionType, { a: number; b: number }>> {
   const totals = Object.fromEntries(REACTION_TYPES.map((r) => [r.key, { a: 0, b: 0 }])) as Record<
