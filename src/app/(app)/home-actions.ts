@@ -7,18 +7,26 @@ import { getActorName, notifyOtherPartner } from "@/lib/push";
 import { PARTNER_COOKIE_NAME, isValidPartnerId } from "@/lib/auth";
 import { todayIST } from "@/lib/dates";
 import { getMemories, getNotes } from "@/lib/data";
+import { REACTION_TYPES, type ReactionType } from "@/lib/reactions";
 
-/** An instant, no-typing-required nudge to the other partner's phone. Also logged so we can show a running "kisses received" count. */
-export async function sendKiss(): Promise<{ sent: boolean }> {
+/**
+ * An instant, no-typing-required nudge to the other partner's phone - kiss, hug, miss-you,
+ * or high-five. Every send is logged (sender, receiver, type) so both partners can see a
+ * running sent/received count per reaction, not just a one-off "sent!" toast.
+ */
+export async function sendReaction(type: ReactionType): Promise<{ sent: boolean }> {
   const actor = cookies().get(PARTNER_COOKIE_NAME)?.value;
   if (!isValidPartnerId(actor)) return { sent: false };
 
+  const meta = REACTION_TYPES.find((r) => r.key === type);
+  if (!meta) return { sent: false };
+
   const receiver = actor === "partner_a" ? "partner_b" : "partner_a";
   const supabase = getSupabaseServerClient();
-  await supabase.from("kisses").insert({ sender_id: actor, receiver_id: receiver });
+  await supabase.from("kisses").insert({ sender_id: actor, receiver_id: receiver, type });
 
   const actorName = await getActorName();
-  await notifyOtherPartner({ title: `${actorName} sent you a kiss 💋`, body: "Thinking of you.", url: "/" });
+  await notifyOtherPartner({ title: meta.notifyTitle(actorName), body: meta.notifyBody, url: "/" });
   revalidatePath("/", "layout");
   return { sent: true };
 }

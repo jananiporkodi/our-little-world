@@ -15,11 +15,13 @@ import {
   getTodaysMoods,
   getWeeklyRecap,
   getPartnerNames,
+  getReactionTotals,
 } from "@/lib/data";
 import { daysBetween, dayOfYearIndex, formatFriendlyDate, toISTDateStr } from "@/lib/dates";
 import { getQuoteOfTheDay } from "@/lib/quotes";
 import { getAffirmationOfTheDay } from "@/lib/affirmations";
 import { BUCKET_CATEGORIES } from "@/lib/types";
+import { REACTION_TYPES } from "@/lib/reactions";
 import { PARTNER_COOKIE_NAME, isValidPartnerId } from "@/lib/auth";
 import HomeReveal from "@/components/home/HomeReveal";
 import MoodCheckIn from "@/components/home/MoodCheckIn";
@@ -41,6 +43,7 @@ export default async function HomePage() {
     activeTodos,
     todayMoods,
     partnerNames,
+    reactionTotals,
   ] = await Promise.all([
     getSettingsMap(),
     getMemoryOfTheDay(),
@@ -53,6 +56,7 @@ export default async function HomePage() {
     getActiveTodos(4),
     getTodaysMoods(),
     getPartnerNames(),
+    getReactionTotals(),
   ]);
 
   const istWeekday = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "Asia/Kolkata" }).format(new Date());
@@ -203,6 +207,21 @@ export default async function HomePage() {
               <dd className="font-bold">{stats.notesCount}</dd>
             </div>
           </dl>
+        </div>
+      </div>
+
+      <div className="card-panel p-5 mt-5">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft mb-3">Little nudges</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+          {REACTION_TYPES.map((r) => (
+            <div key={r.key}>
+              <p className="text-xl">{r.emoji}</p>
+              <p className="text-[11px] text-ink-soft mt-1">{r.label}</p>
+              <p className="text-xs font-bold mt-0.5">
+                {partnerAName ?? "A"} {reactionTotals[r.key].a} · {partnerBName ?? "B"} {reactionTotals[r.key].b}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
 

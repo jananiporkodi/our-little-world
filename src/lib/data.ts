@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { getSupabaseServerClient } from "./supabase/server";
 import { dayOfYearIndex, daysUntil, nextAnniversary, ordinal, todayIST } from "./dates";
 import { PARTNER_COOKIE_NAME, isValidPartnerId } from "./auth";
+import { REACTION_TYPES, type ReactionType } from "./reactions";
 import type {
   BucketItem,
   Memory,
@@ -17,18 +18,40 @@ import type {
   Expense,
 } from "./types";
 
-/** How many kisses the current device's partner has received in total - shown as a little badge on the kiss button. */
-export async function getReceivedKissCount(): Promise<number> {
+/** How many of each reaction (kiss, hug, miss-you, high-five) the current device's partner has SENT, all-time - powers the badge on each floating reaction icon so you always know your own tally. */
+export async function getSentReactionCounts(): Promise<Record<ReactionType, number>> {
+  const empty = Object.fromEntries(REACTION_TYPES.map((r) => [r.key, 0])) as Record<ReactionType, number>;
   const actor = cookies().get(PARTNER_COOKIE_NAME)?.value;
-  if (!isValidPartnerId(actor)) return 0;
+  if (!isValidPartnerId(actor)) return empty;
 
   const supabase = getSupabaseServerClient();
-  const { count, error } = await supabase
-    .from("kisses")
-    .select("id", { count: "exact", head: true })
-    .eq("receiver_id", actor);
-  if (error) return 0;
-  return count ?? 0;
+  const { data, error } = await supabase.from("kisses").select("type").eq("sender_id", actor);
+  if (error || !data) return empty;
+
+  const counts = { ...empty };
+  for (const row of data as { type: string }[]) {
+    if (row.type in counts) counts[row.type as ReactionType] += 1;
+  }
+  return counts;
+}
+
+/** Cumulative all-time totals of each reaction type, received by each partner - for the Home "little nudges" summary, so both partners can see both sides, not just their own. */
+export async function getReactionTotals(): Promise<Record<ReactionType, { a: number; b: number }>> {
+  const totals = Object.fromEntries(REACTION_TYPES.map((r) => [r.key, { a: 0, b: 0 }])) as Record<
+    ReactionType,
+    { a: number; b: number }
+  >;
+
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase.from("kisses").select("type, receiver_id");
+  if (error || !data) return totals;
+
+  for (const row of data as { type: string; receiver_id: string }[]) {
+    if (!(row.type in totals)) continue;
+    if (row.receiver_id === "partner_a") totals[row.type as ReactionType].a += 1;
+    else if (row.receiver_id === "partner_b") totals[row.type as ReactionType].b += 1;
+  }
+  return totals;
 }
 
 export async function getSettingsMap(): Promise<Record<string, unknown>> {
