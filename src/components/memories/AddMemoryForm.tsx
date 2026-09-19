@@ -16,10 +16,12 @@ function SubmitButton() {
 
 export default function AddMemoryForm({ autoOpen = false, onClose }: { autoOpen?: boolean; onClose?: () => void }) {
   const [open, setOpen] = useState(autoOpen);
+  const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   function close() {
     setOpen(false);
+    setError(null);
     onClose?.();
   }
 
@@ -35,13 +37,24 @@ export default function AddMemoryForm({ autoOpen = false, onClose }: { autoOpen?
     <form
       ref={formRef}
       action={async (formData) => {
-        await addMemory(formData);
-        formRef.current?.reset();
-        close();
+        setError(null);
+        try {
+          await addMemory(formData);
+          formRef.current?.reset();
+          close();
+        } catch (err) {
+          console.error("addMemory failed:", err);
+          setError(
+            "Couldn't save that memory — if you attached photos, try fewer or smaller ones and try again."
+          );
+        }
       }}
       className="card-panel p-5 space-y-3"
     >
       <p className="font-hand text-2xl">Add a memory</p>
+      {error && (
+        <p className="text-xs font-semibold text-accent bg-accent/10 rounded-lg px-3 py-2">{error}</p>
+      )}
       <input name="title" placeholder="Title (optional)" className="input-field" />
       <textarea name="story" placeholder="Tell the story…" className="input-field" rows={3} />
       <div className="grid grid-cols-2 gap-3">

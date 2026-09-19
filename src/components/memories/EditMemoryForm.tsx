@@ -29,6 +29,7 @@ export default function EditMemoryForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [photos, setPhotos] = useState<string[]>(memory.photos ?? []);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [placeChoice, setPlaceChoice] = useState<string>(memory.place_id ?? "__none__");
   const [location, setLocation] = useState<string>(memory.location ?? "");
   const [newPlaceName, setNewPlaceName] = useState("");
@@ -69,8 +70,16 @@ export default function EditMemoryForm({
     <form
       ref={formRef}
       action={async (formData) => {
-        await updateMemory(formData);
-        onDone();
+        setError(null);
+        try {
+          await updateMemory(formData);
+          onDone();
+        } catch (err) {
+          console.error("updateMemory failed:", err);
+          setError(
+            "Couldn't save those changes — if you added photos, try fewer or smaller ones and try again."
+          );
+        }
       }}
       className="space-y-2.5"
     >
@@ -78,6 +87,10 @@ export default function EditMemoryForm({
       {photos.map((url) => (
         <input key={url} type="hidden" name="existingPhotos" value={url} />
       ))}
+
+      {error && (
+        <p className="text-xs font-semibold text-accent bg-accent/10 rounded-lg px-3 py-2">{error}</p>
+      )}
 
       <div className="flex items-center justify-between">
         <p className="font-hand text-2xl">Edit memory</p>
