@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import type { PartnerAssignee, Plan } from "@/lib/types";
 import { PLAN_CATEGORIES } from "@/lib/types";
-import { formatFriendlyDate, daysUntil } from "@/lib/dates";
+import { formatFriendlyDate, formatDateRange, dateRangeKeys, daysUntil } from "@/lib/dates";
 import { getPlanState, formatTimeRange } from "@/lib/plans";
 import { addPlan, markPlanStatus, deletePlan, convertPlanToMemory, updatePlan, reschedulePlan } from "@/app/(app)/plans/actions";
 
@@ -57,22 +57,39 @@ function SubmitButton({ label = "+ add plan", pendingLabel = "Adding…" }: { la
 
 function AddPlanForm({ defaultDate, names, onDone }: { defaultDate: string; names: { a: string; b: string }; onDone: () => void }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const [startDate, setStartDate] = useState(defaultDate);
   return (
     <form
       ref={formRef}
       action={async (formData) => {
         await addPlan(formData);
         formRef.current?.reset();
+        setStartDate(defaultDate);
         onDone();
       }}
       className="card-panel p-4 space-y-2.5"
     >
       <input name="title" placeholder="Dinner date" className="input-field" required />
       <textarea name="description" placeholder="Any details? (optional)" className="input-field" rows={2} />
-      <div className="grid grid-cols-2 gap-2.5">
-        <input type="date" name="planDate" defaultValue={defaultDate} className="input-field" required />
-        <input name="location" placeholder="Location (optional)" className="input-field" />
+      <div>
+        <label className="text-[11px] font-bold uppercase tracking-wide text-ink-soft block mb-1">
+          Dates
+        </label>
+        <div className="grid grid-cols-2 gap-2.5">
+          <input
+            type="date"
+            name="planDate"
+            defaultValue={defaultDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="input-field"
+            required
+            title="Start date"
+          />
+          <input type="date" name="endDate" min={startDate} className="input-field" title="End date (optional, for multi-day plans)" />
+        </div>
+        <p className="text-[10px] text-ink-soft mt-1">leave end date blank for a single-day plan</p>
       </div>
+      <input name="location" placeholder="Location (optional)" className="input-field" />
       <div className="grid grid-cols-2 gap-2.5">
         <input type="time" name="startTime" className="input-field" />
         <input type="time" name="endTime" className="input-field" />
@@ -110,6 +127,7 @@ function AddPlanForm({ defaultDate, names, onDone }: { defaultDate: string; name
 
 function EditPlanForm({ plan, names, onDone }: { plan: Plan; names: { a: string; b: string }; onDone: () => void }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const [startDate, setStartDate] = useState(plan.plan_date);
   return (
     <form
       ref={formRef}
@@ -123,10 +141,32 @@ function EditPlanForm({ plan, names, onDone }: { plan: Plan; names: { a: string;
       <p className="font-hand text-xl">Edit plan</p>
       <input name="title" defaultValue={plan.title} placeholder="Dinner date" className="input-field" required />
       <textarea name="description" defaultValue={plan.description ?? ""} placeholder="Any details? (optional)" className="input-field" rows={2} />
-      <div className="grid grid-cols-2 gap-2.5">
-        <input type="date" name="planDate" defaultValue={plan.plan_date} className="input-field" required />
-        <input name="location" defaultValue={plan.location ?? ""} placeholder="Location (optional)" className="input-field" />
+      <div>
+        <label className="text-[11px] font-bold uppercase tracking-wide text-ink-soft block mb-1">
+          Dates
+        </label>
+        <div className="grid grid-cols-2 gap-2.5">
+          <input
+            type="date"
+            name="planDate"
+            defaultValue={plan.plan_date}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="input-field"
+            required
+            title="Start date"
+          />
+          <input
+            type="date"
+            name="endDate"
+            defaultValue={plan.end_date ?? ""}
+            min={startDate}
+            className="input-field"
+            title="End date (optional, for multi-day plans)"
+          />
+        </div>
+        <p className="text-[10px] text-ink-soft mt-1">leave end date blank for a single-day plan</p>
       </div>
+      <input name="location" defaultValue={plan.location ?? ""} placeholder="Location (optional)" className="input-field" />
       <div className="grid grid-cols-2 gap-2.5">
         <input type="time" name="startTime" defaultValue={plan.start_time ?? ""} className="input-field" />
         <input type="time" name="endTime" defaultValue={plan.end_time ?? ""} className="input-field" />
@@ -252,6 +292,9 @@ function PlanDetailRow({ plan, names }: { plan: Plan; names: { a: string; b: str
             </p>
             {state === "completed" && <span className="text-accent text-sm">♥</span>}
           </div>
+          {plan.end_date && plan.end_date !== plan.plan_date && (
+            <p className="text-[11px] text-ink-soft mt-0.5">🗓 {formatDateRange(plan.plan_date, plan.end_date)}</p>
+          )}
           {plan.location && <p className="text-[11px] text-ink-soft mt-0.5">📍 {plan.location}</p>}
           {timeRange && <p className="text-[11px] text-ink-soft mt-0.5">🕐 {timeRange}</p>}
           {plan.description && <p className="text-sm text-ink-soft mt-1">{plan.description}</p>}
@@ -345,9 +388,11 @@ export default function PlansClient({ plans, partnerNames }: { plans: Plan[]; pa
   const plansByDate = useMemo(() => {
     const map = new Map<string, Plan[]>();
     for (const plan of plans) {
-      const list = map.get(plan.plan_date) ?? [];
-      list.push(plan);
-      map.set(plan.plan_date, list);
+      for (const key of dateRangeKeys(plan.plan_date, plan.end_date)) {
+        const list = map.get(key) ?? [];
+        list.push(plan);
+        map.set(key, list);
+      }
     }
     return map;
   }, [plans]);

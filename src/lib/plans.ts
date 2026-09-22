@@ -10,7 +10,8 @@ export function getPlanState(plan: Plan): PlanState {
   if (plan.status === "cancelled") return "cancelled";
   if (plan.status === "done" || plan.memory_id) return "completed";
   if (plan.status === "missed") return "missed";
-  const remaining = daysUntil(plan.plan_date);
+  // A multi-day plan (e.g. a trip) isn't "missed" until its last day has passed, not its first.
+  const remaining = daysUntil(plan.end_date || plan.plan_date);
   if (remaining < 0) return "missed";
   return "upcoming";
 }

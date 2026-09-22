@@ -381,7 +381,8 @@ export async function getPlans(): Promise<Plan[]> {
 export async function getNextPlan(): Promise<Plan | null> {
   const plans = await getPlans();
   const upcoming = plans
-    .filter((p) => p.status === "planned" && !p.memory_id && daysUntil(p.plan_date) >= 0)
+    // Ongoing multi-day plans (already started, not yet ended) still count as "next up".
+    .filter((p) => p.status === "planned" && !p.memory_id && daysUntil(p.end_date || p.plan_date) >= 0)
     .sort((a, b) => (a.plan_date < b.plan_date ? -1 : 1));
   return upcoming.length > 0 ? upcoming[0] : null;
 }

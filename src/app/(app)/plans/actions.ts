@@ -4,12 +4,16 @@ import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { uploadManyMediaFiles } from "@/lib/storage";
 import { notifyOtherPartner, getActorName } from "@/lib/push";
+import { daysBetween } from "@/lib/dates";
 import type { PartnerAssignee, PlanStatus } from "@/lib/types";
 
 export async function addPlan(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim() || null;
   const planDate = String(formData.get("planDate") ?? "").trim();
+  const endDateRaw = String(formData.get("endDate") ?? "").trim();
+  // A blank or earlier-than-start end date just means "single day" - store null rather than bad data.
+  const endDate = endDateRaw && endDateRaw >= planDate ? endDateRaw : null;
   const startTime = String(formData.get("startTime") ?? "").trim() || null;
   const endTime = String(formData.get("endTime") ?? "").trim() || null;
   const person = (String(formData.get("person") ?? "both").trim() || "both") as PartnerAssignee;
@@ -25,6 +29,7 @@ export async function addPlan(formData: FormData) {
     title,
     description,
     plan_date: planDate,
+    end_date: endDate,
     start_time: startTime,
     end_time: endTime,
     person,
@@ -59,6 +64,8 @@ export async function updatePlan(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim() || null;
   const planDate = String(formData.get("planDate") ?? "").trim();
+  const endDateRaw = String(formData.get("endDate") ?? "").trim();
+  const endDate = endDateRaw && endDateRaw >= planDate ? endDateRaw : null;
   const startTime = String(formData.get("startTime") ?? "").trim() || null;
   const endTime = String(formData.get("endTime") ?? "").trim() || null;
   const person = (String(formData.get("person") ?? "both").trim() || "both") as PartnerAssignee;
@@ -76,6 +83,7 @@ export async function updatePlan(formData: FormData) {
       title,
       description,
       plan_date: planDate,
+      end_date: endDate,
       start_time: startTime,
       end_time: endTime,
       person,
@@ -90,11 +98,34 @@ export async function updatePlan(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
-/** Moves a plan to a different date. Since it's being rescheduled rather than resolved, this also clears any missed/cancelled status back to "planned". */
+/**
+ * Moves a plan to a different date. Since it's being rescheduled rather than resolved, this also
+ * clears any missed/cancelled status back to "planned". A multi-day plan keeps its original
+ * duration - moving a 3-day trip's start date shifts its end date along with it.
+ */
 export async function reschedulePlan(planId: string, newDate: string) {
   if (!planId || !newDate) return;
   const supabase = getSupabaseServerClient();
-  const { error } = await supabase.from("plans").update({ plan_date: newDate, status: "planned" }).eq("id", planId);
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("plans")
+    .select("plan_date, end_date")
+    .eq("id", planId)
+    .single();
+  if (fetchError) throw fetchError;
+
+  let newEndDate: string | null = null;
+  if (existing?.end_date) {
+    const spanDays = daysBetween(existing.plan_date, new Date(existing.end_date + "T00:00:00Z"));
+    const [ny, nm, nd] = newDate.split("-").map(Number);
+    const shifted = new Date(Date.UTC(ny, nm - 1, nd + spanDays));
+    newEndDate = `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}-${String(shifted.getUTCDate()).padStart(2, "0")}`;
+  }
+
+  const { error } = await supabase
+    .from("plans")
+    .update({ plan_date: newDate, end_date: newEndDate, status: "planned" })
+    .eq("id", planId);
   if (error) throw error;
 
   revalidatePath("/plans");

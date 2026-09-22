@@ -110,6 +110,7 @@ export interface Plan {
   title: string;
   description: string | null;
   plan_date: string;
+  end_date: string | null;
   start_time: string | null;
   end_time: string | null;
   person: PartnerAssignee;

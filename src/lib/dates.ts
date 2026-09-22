@@ -22,6 +22,49 @@ export function formatFriendlyDate(dateStr: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
 
+/**
+ * Friendly display for a plan's date span. With no end date (or an end date equal to the
+ * start), this just reads like `formatFriendlyDate`. A real multi-day range compresses the
+ * month/year when they match the start, e.g. "Sep 24 – 27, 2026" or "Dec 30, 2026 – Jan 2, 2027".
+ */
+export function formatDateRange(startDateStr: string, endDateStr: string | null): string {
+  if (!endDateStr || endDateStr === startDateStr) return formatFriendlyDate(startDateStr);
+
+  const [sy, sm, sd] = startDateStr.split("-").map(Number);
+  const [ey, em, ed] = endDateStr.split("-").map(Number);
+  const start = new Date(Date.UTC(sy, sm - 1, sd));
+  const end = new Date(Date.UTC(ey, em - 1, ed));
+
+  const startMonth = start.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+  const endMonth = end.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+
+  if (sy === ey && sm === em) {
+    return `${startMonth} ${sd} – ${ed}, ${ey}`;
+  }
+  if (sy === ey) {
+    return `${startMonth} ${sd} – ${endMonth} ${ed}, ${ey}`;
+  }
+  return `${startMonth} ${sd}, ${sy} – ${endMonth} ${ed}, ${ey}`;
+}
+
+/** Every "YYYY-MM-DD" date key from start to end (inclusive), UTC-safe. Capped so bad data can't loop forever. */
+export function dateRangeKeys(startDateStr: string, endDateStr: string | null): string[] {
+  if (!endDateStr || endDateStr <= startDateStr) return [startDateStr];
+
+  const [sy, sm, sd] = startDateStr.split("-").map(Number);
+  const [ey, em, ed] = endDateStr.split("-").map(Number);
+  const startUtc = Date.UTC(sy, sm - 1, sd);
+  const endUtc = Date.UTC(ey, em - 1, ed);
+
+  const keys: string[] = [];
+  const MAX_DAYS = 366;
+  for (let t = startUtc, i = 0; t <= endUtc && i < MAX_DAYS; t += 86400000, i++) {
+    const d = new Date(t);
+    keys.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`);
+  }
+  return keys;
+}
+
 /** Deterministic "pick of the day" index into an array, stable per calendar day. */
 export function dayOfYearIndex(length: number, date: Date = new Date()): number {
   if (length <= 0) return 0;
