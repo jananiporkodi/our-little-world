@@ -2,10 +2,10 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import type { Expense, PartnerAssignee } from "@/lib/types";
+import type { Expense, Settlement, PartnerAssignee } from "@/lib/types";
 import { EXPENSE_CATEGORIES } from "@/lib/types";
 import { todayIST, formatFriendlyDate } from "@/lib/dates";
-import { addExpense, updateExpense, deleteExpense } from "@/app/(app)/expenses/actions";
+import { addExpense, updateExpense, deleteExpense, addSettlement, deleteSettlement } from "@/app/(app)/expenses/actions";
 
 function formatINR(n: number): string {
   return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
@@ -123,6 +123,57 @@ function ExpenseForm({
   );
 }
 
+function SettleUpForm({
+  owerName,
+  oweeName,
+  owerKey,
+  outstanding,
+  onDone,
+}: {
+  owerName: string;
+  oweeName: string;
+  owerKey: "partner_a" | "partner_b";
+  outstanding: number;
+  onDone: () => void;
+}) {
+  const formRef = useRef<HTMLFormElement>(null);
+  return (
+    <form
+      ref={formRef}
+      action={async (formData) => {
+        formData.set("paidBy", owerKey);
+        await addSettlement(formData);
+        onDone();
+      }}
+      className="card-panel p-4 space-y-2.5 border-2 border-accent/30"
+    >
+      <p className="font-hand text-xl">Settle up</p>
+      <p className="text-sm text-ink-soft">
+        {owerName} paying {oweeName} to clear the balance.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="number"
+          name="amount"
+          defaultValue={outstanding.toFixed(2)}
+          step="0.01"
+          min="0.01"
+          className="input-field !w-32"
+          required
+        />
+        <input type="date" name="settlementDate" defaultValue={todayIST()} className="input-field !w-[150px]" required />
+        <input name="note" placeholder="Note (optional)" className="input-field flex-1 min-w-[140px]" />
+      </div>
+      <div className="flex gap-2 pt-1">
+        <SubmitButton label="mark as settled" pendingLabel="Settling…" />
+        <button type="button" onClick={onDone} className="btn-ghost !py-2 !px-3 text-sm">
+          cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function BarRow({ label, emoji, amount, max }: { label: string; emoji: string; amount: number; max: number }) {
   const pct = max > 0 ? Math.max(4, Math.round((amount / max) * 100)) : 0;
   return (
@@ -142,10 +193,12 @@ function BarRow({ label, emoji, amount, max }: { label: string; emoji: string; a
 
 export default function ExpensesClient({
   expenses,
+  settlements,
   partnerNames,
   currentPartner,
 }: {
   expenses: Expense[];
+  settlements: Settlement[];
   partnerNames: { a: string; b: string };
   currentPartner: PartnerAssignee | null;
 }) {
@@ -154,6 +207,8 @@ export default function ExpensesClient({
   const [to, setTo] = useState(defaultRange.to);
   const [adding, setAdding] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [settlingUp, setSettlingUp] = useState(false);
+  const [showSettlements, setShowSettlements] = useState(false);
   const [deletePending, startDeleteTransition] = useTransition();
 
   const defaultPaidBy: "partner_a" | "partner_b" =
@@ -190,8 +245,6 @@ export default function ExpensesClient({
 
   const stats = useMemo(() => {
     let total = 0;
-    let sharedByA = 0;
-    let sharedByB = 0;
     let totalByA = 0;
     let totalByB = 0;
     const byCategory = new Map<string, number>();
@@ -201,20 +254,40 @@ export default function ExpensesClient({
       byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + e.amount);
       if (e.paid_by === "partner_a") totalByA += e.amount;
       else totalByB += e.amount;
-      if (e.is_shared) {
-        if (e.paid_by === "partner_a") sharedByA += e.amount;
-        else sharedByB += e.amount;
-      }
     }
 
-    const balance = (sharedByA - sharedByB) / 2; // positive: B owes A; negative: A owes B
     const categories = Array.from(byCategory.entries())
       .map(([key, amount]) => ({ key, amount }))
       .sort((a, b) => b.amount - a.amount);
     const maxCategory = categories[0]?.amount ?? 0;
 
-    return { total, totalByA, totalByB, balance, categories, maxCategory };
+    return { total, totalByA, totalByB, categories, maxCategory };
   }, [filtered]);
+
+  // The outstanding balance is a running, all-time number - independent of whatever date range is
+  // being browsed above - so "settle up" always clears the real debt, not just what's in view.
+  const overallBalance = useMemo(() => {
+    let sharedByA = 0;
+    let sharedByB = 0;
+    for (const e of expenses) {
+      if (!e.is_shared) continue;
+      if (e.paid_by === "partner_a") sharedByA += e.amount;
+      else sharedByB += e.amount;
+    }
+    let settledByA = 0;
+    let settledByB = 0;
+    for (const s of settlements) {
+      if (s.paid_by === "partner_a") settledByA += s.amount;
+      else settledByB += s.amount;
+    }
+    // positive: B owes A; negative: A owes B. A settlement payment nets against the expense split.
+    return (sharedByA - sharedByB) / 2 + (settledByA - settledByB);
+  }, [expenses, settlements]);
+
+  const owerKey: "partner_a" | "partner_b" = overallBalance >= 0 ? "partner_b" : "partner_a";
+  const owerName = owerKey === "partner_a" ? partnerNames.a : partnerNames.b;
+  const oweeName = owerKey === "partner_a" ? partnerNames.b : partnerNames.a;
+  const isSettledUp = Math.round(Math.abs(overallBalance) * 100) === 0;
 
   return (
     <div>
@@ -263,21 +336,85 @@ export default function ExpensesClient({
         </div>
         <div className="card-panel p-4">
           <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">Split balance</p>
-          {Math.round(Math.abs(stats.balance) * 100) === 0 ? (
+          {isSettledUp ? (
             <p className="text-sm font-bold text-ink-soft">all settled up 🎉</p>
-          ) : stats.balance > 0 ? (
-            <p className="text-sm">
-              {partnerNames.b} owes {partnerNames.a}{" "}
-              <span className="font-bold text-accent">{formatINR(stats.balance)}</span>
-            </p>
           ) : (
-            <p className="text-sm">
-              {partnerNames.a} owes {partnerNames.b}{" "}
-              <span className="font-bold text-accent">{formatINR(Math.abs(stats.balance))}</span>
-            </p>
+            <>
+              <p className="text-sm">
+                {owerName} owes {oweeName}{" "}
+                <span className="font-bold text-accent">{formatINR(Math.abs(overallBalance))}</span>
+              </p>
+              <button
+                onClick={() => setSettlingUp(true)}
+                className="btn-ghost !py-1 !px-2.5 text-[11px] text-accent mt-1.5"
+              >
+                mark as settled
+              </button>
+            </>
           )}
         </div>
       </div>
+
+      {settlingUp && !isSettledUp && (
+        <div className="mb-5">
+          <SettleUpForm
+            owerName={owerName}
+            oweeName={oweeName}
+            owerKey={owerKey}
+            outstanding={Math.abs(overallBalance)}
+            onDone={() => setSettlingUp(false)}
+          />
+        </div>
+      )}
+
+      {settlements.length > 0 && (
+        <div className="mb-5">
+          <button
+            onClick={() => setShowSettlements((v) => !v)}
+            className="text-[11px] text-ink-soft underline underline-offset-2"
+          >
+            {showSettlements ? "hide" : "show"} settlement history ({settlements.length})
+          </button>
+          {showSettlements && (
+            <div className="card-panel p-0 overflow-x-auto mt-2">
+              <table className="w-full text-sm min-w-[480px]">
+                <thead>
+                  <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-ink-soft border-b border-black/10 dark:border-white/10">
+                    <th className="py-2 px-3">Date</th>
+                    <th className="py-2 px-3">Paid by</th>
+                    <th className="py-2 px-3">Note</th>
+                    <th className="py-2 px-3 text-right">Amount</th>
+                    <th className="py-2 px-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {settlements.map((s) => (
+                    <tr key={s.id} className="border-b last:border-0 border-black/[0.05] dark:border-white/5">
+                      <td className="py-2 px-3 whitespace-nowrap text-ink-soft text-xs">
+                        {formatFriendlyDate(s.settlement_date)}
+                      </td>
+                      <td className="py-2 px-3 whitespace-nowrap text-xs">
+                        {s.paid_by === "partner_a" ? partnerNames.a : partnerNames.b}
+                      </td>
+                      <td className="py-2 px-3 text-[11px] text-ink-soft italic truncate max-w-[180px]">{s.note}</td>
+                      <td className="py-2 px-3 whitespace-nowrap text-right font-bold">{formatINR(s.amount)}</td>
+                      <td className="py-2 px-3 whitespace-nowrap text-right">
+                        <button
+                          disabled={deletePending}
+                          onClick={() => startDeleteTransition(() => deleteSettlement(s.id))}
+                          className="text-[11px] text-accent underline underline-offset-2"
+                        >
+                          undo
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {stats.categories.length > 0 && (
         <div className="card-panel p-5 mb-5">

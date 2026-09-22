@@ -189,3 +189,13 @@ export interface Expense {
   notes: string | null;
   created_at: string;
 }
+
+/** A direct payment one partner makes to the other to clear (all or part of) the running split balance. */
+export interface Settlement {
+  id: string;
+  paid_by: "partner_a" | "partner_b";
+  amount: number;
+  settlement_date: string;
+  note: string | null;
+  created_at: string;
+}

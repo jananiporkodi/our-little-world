@@ -86,3 +86,42 @@ export async function deleteExpense(expenseId: string) {
   revalidatePath("/expenses");
   revalidatePath("/", "layout");
 }
+
+/** Records a direct payment from the partner who owes to the partner who's owed, clearing that much of the running split balance. */
+export async function addSettlement(formData: FormData) {
+  const paidBy = String(formData.get("paidBy") ?? "").trim();
+  const amount = Number(String(formData.get("amount") ?? "").trim());
+  const settlementDate = String(formData.get("settlementDate") ?? "").trim() || todayIST();
+  const note = String(formData.get("note") ?? "").trim() || null;
+
+  if (!isPartner(paidBy) || !amount || Number.isNaN(amount) || amount <= 0) return;
+
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase.from("settlements").insert({
+    paid_by: paidBy,
+    amount,
+    settlement_date: settlementDate,
+    note,
+  });
+  if (error) throw error;
+
+  revalidatePath("/expenses");
+  revalidatePath("/", "layout");
+
+  const actorName = await getActorName();
+  await notifyOtherPartner({
+    title: `${actorName} marked a payment as settled`,
+    body: `₹${amount.toLocaleString("en-IN")}${note ? ` · ${note}` : ""}`,
+    url: "/expenses",
+  });
+}
+
+export async function deleteSettlement(settlementId: string) {
+  if (!settlementId) return;
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase.from("settlements").delete().eq("id", settlementId);
+  if (error) throw error;
+
+  revalidatePath("/expenses");
+  revalidatePath("/", "layout");
+}

@@ -16,6 +16,7 @@ import type {
   Todo,
   Place,
   Expense,
+  Settlement,
 } from "./types";
 
 /** How many of each reaction (kiss, hug, miss-you, high-five) the current device's partner has SENT, all-time - powers the badge on each floating reaction icon so you always know your own tally. */
@@ -179,6 +180,18 @@ export async function getExpenses(): Promise<Expense[]> {
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data as Expense[];
+}
+
+/** Direct "settle up" payments one partner has made the other, all-time - netted against the shared-expense split to get the real outstanding balance. */
+export async function getSettlements(): Promise<Settlement[]> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("settlements")
+    .select("*")
+    .order("settlement_date", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data as Settlement[];
 }
 
 export async function getCountdowns(): Promise<Countdown[]> {
