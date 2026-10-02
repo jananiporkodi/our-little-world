@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useFormStatus } from "react-dom";
-import type { Expense, Settlement, PartnerAssignee } from "@/lib/types";
+import type { Expense, Settlement, Trip, PartnerAssignee } from "@/lib/types";
 import { EXPENSE_CATEGORIES } from "@/lib/types";
 import { todayIST, formatFriendlyDate } from "@/lib/dates";
 import { addExpense, updateExpense, deleteExpense, addSettlement, deleteSettlement } from "@/app/(app)/expenses/actions";
@@ -41,11 +42,13 @@ function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: st
 function ExpenseForm({
   expense,
   names,
+  trips,
   defaultPaidBy,
   onDone,
 }: {
   expense?: Expense;
   names: { a: string; b: string };
+  trips: Trip[];
   defaultPaidBy: "partner_a" | "partner_b";
   onDone: () => void;
 }) {
@@ -114,6 +117,16 @@ function ExpenseForm({
           <input type="checkbox" name="isShared" defaultChecked={expense?.is_shared ?? true} className="w-4 h-4" />
           split equally
         </label>
+        {trips.length > 0 && (
+          <select name="tripId" defaultValue={expense?.trip_id ?? ""} className="input-field !w-auto">
+            <option value="">no trip</option>
+            {trips.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.cover_emoji} {t.title}
+              </option>
+            ))}
+          </select>
+        )}
         <SubmitButton label={isEdit ? "save changes" : "add expense"} pendingLabel={isEdit ? "Saving…" : "Adding…"} />
         <button type="button" onClick={onDone} className="btn-ghost !py-2 !px-3 text-sm">
           cancel
@@ -194,11 +207,13 @@ function BarRow({ label, emoji, amount, max }: { label: string; emoji: string; a
 export default function ExpensesClient({
   expenses,
   settlements,
+  trips,
   partnerNames,
   currentPartner,
 }: {
   expenses: Expense[];
   settlements: Settlement[];
+  trips: Trip[];
   partnerNames: { a: string; b: string };
   currentPartner: PartnerAssignee | null;
 }) {
@@ -316,7 +331,7 @@ export default function ExpensesClient({
 
       {adding && (
         <div className="mb-5">
-          <ExpenseForm names={partnerNames} defaultPaidBy={defaultPaidBy} onDone={() => setAdding(false)} />
+          <ExpenseForm names={partnerNames} trips={trips} defaultPaidBy={defaultPaidBy} onDone={() => setAdding(false)} />
         </div>
       )}
 
@@ -451,6 +466,7 @@ export default function ExpensesClient({
                   {items.map((e) => {
                     const meta = categoryMeta(e.category);
                     const payerName = e.paid_by === "partner_a" ? partnerNames.a : partnerNames.b;
+                    const trip = e.trip_id ? trips.find((t) => t.id === e.trip_id) : null;
                     return (
                       <tr key={e.id} className="border-b last:border-0 border-black/[0.05] dark:border-white/5">
                         <td className="py-2 px-3 whitespace-nowrap text-ink-soft text-xs">
@@ -459,6 +475,14 @@ export default function ExpensesClient({
                         <td className="py-2 px-3">
                           <p className="font-semibold truncate max-w-[180px]">{e.title}</p>
                           {e.notes && <p className="text-[11px] text-ink-soft italic truncate max-w-[180px]">{e.notes}</p>}
+                          {trip && (
+                            <Link
+                              href={`/trips/${trip.id}`}
+                              className="text-[10px] text-accent underline underline-offset-2"
+                            >
+                              {trip.cover_emoji} {trip.title}
+                            </Link>
+                          )}
                         </td>
                         <td className="py-2 px-3 whitespace-nowrap text-xs">
                           {meta.emoji} {meta.label}
@@ -500,6 +524,7 @@ export default function ExpensesClient({
             <ExpenseForm
               expense={editingExpense}
               names={partnerNames}
+              trips={trips}
               defaultPaidBy={editingExpense.paid_by}
               onDone={() => setEditingExpense(null)}
             />

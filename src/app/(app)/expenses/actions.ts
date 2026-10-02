@@ -17,6 +17,7 @@ export async function addExpense(formData: FormData) {
   const isShared = formData.get("isShared") === "on";
   const expenseDate = String(formData.get("expenseDate") ?? "").trim() || todayIST();
   const notes = String(formData.get("notes") ?? "").trim() || null;
+  const tripId = String(formData.get("tripId") ?? "").trim() || null;
 
   if (!title || !amount || Number.isNaN(amount) || amount <= 0 || !isPartner(paidBy)) return;
 
@@ -29,10 +30,12 @@ export async function addExpense(formData: FormData) {
     is_shared: isShared,
     expense_date: expenseDate,
     notes,
+    trip_id: tripId,
   });
   if (error) throw error;
 
   revalidatePath("/expenses");
+  revalidatePath("/trips");
   revalidatePath("/", "layout");
 
   const actorName = await getActorName();
@@ -55,6 +58,7 @@ export async function updateExpense(formData: FormData) {
   const isShared = formData.get("isShared") === "on";
   const expenseDate = String(formData.get("expenseDate") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim() || null;
+  const tripId = String(formData.get("tripId") ?? "").trim() || null;
 
   if (!title || !amount || Number.isNaN(amount) || amount <= 0 || !isPartner(paidBy) || !expenseDate) return;
 
@@ -69,11 +73,13 @@ export async function updateExpense(formData: FormData) {
       is_shared: isShared,
       expense_date: expenseDate,
       notes,
+      trip_id: tripId,
     })
     .eq("id", expenseId);
   if (error) throw error;
 
   revalidatePath("/expenses");
+  revalidatePath("/trips");
   revalidatePath("/", "layout");
 }
 
@@ -84,6 +90,7 @@ export async function deleteExpense(expenseId: string) {
   if (error) throw error;
 
   revalidatePath("/expenses");
+  revalidatePath("/trips");
   revalidatePath("/", "layout");
 }
 

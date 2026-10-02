@@ -17,6 +17,9 @@ import type {
   Place,
   Expense,
   Settlement,
+  Trip,
+  TripLogistics,
+  TripItem,
 } from "./types";
 
 /** How many of each reaction (kiss, hug, miss-you, high-five) the current device's partner has SENT, all-time - powers the badge on each floating reaction icon so you always know your own tally. */
@@ -192,6 +195,56 @@ export async function getSettlements(): Promise<Settlement[]> {
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data as Settlement[];
+}
+
+export async function getTrips(): Promise<Trip[]> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase.from("trips").select("*").order("start_date", { ascending: false });
+  if (error) throw error;
+  return data as Trip[];
+}
+
+export async function getTrip(tripId: string): Promise<Trip | null> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase.from("trips").select("*").eq("id", tripId).maybeSingle();
+  if (error) throw error;
+  return data as Trip | null;
+}
+
+export async function getTripLogistics(tripId: string): Promise<TripLogistics[]> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("trip_logistics")
+    .select("*")
+    .eq("trip_id", tripId)
+    .order("start_date", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data as TripLogistics[];
+}
+
+export async function getTripItems(tripId: string): Promise<TripItem[]> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("trip_items")
+    .select("*")
+    .eq("trip_id", tripId)
+    .order("day_date", { ascending: true, nullsFirst: true })
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data as TripItem[];
+}
+
+/** Expenses tagged to a specific trip, for the trip's own spend total and split. */
+export async function getTripExpenses(tripId: string): Promise<Expense[]> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("expenses")
+    .select("*")
+    .eq("trip_id", tripId)
+    .order("expense_date", { ascending: false });
+  if (error) throw error;
+  return data as Expense[];
 }
 
 export async function getCountdowns(): Promise<Countdown[]> {

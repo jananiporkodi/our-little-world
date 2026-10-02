@@ -8,6 +8,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Home", emoji: "🏡" },
   { href: "/memories", label: "Memories", emoji: "📸" },
   { href: "/plans", label: "Calendar", emoji: "🗓" },
+  { href: "/trips", label: "Trips", emoji: "🧳" },
   { href: "/todos", label: "To-do", emoji: "☑" },
   { href: "/bucket-list", label: "Bucket list", emoji: "🪣" },
   { href: "/expenses", label: "Expenses", emoji: "💰" },

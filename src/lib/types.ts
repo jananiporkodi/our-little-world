@@ -187,8 +187,69 @@ export interface Expense {
   is_shared: boolean;
   expense_date: string;
   notes: string | null;
+  trip_id: string | null;
   created_at: string;
 }
+
+export type TripState = "upcoming" | "ongoing" | "completed";
+
+export interface Trip {
+  id: string;
+  title: string;
+  destination: string | null;
+  start_date: string;
+  end_date: string;
+  cover_emoji: string;
+  notes: string | null;
+  memory_id: string | null;
+  created_at: string;
+}
+
+export const TRIP_EMOJIS = ["🧳", "✈️", "🏖", "🏔", "🏙", "🚗", "🚂", "⛺"] as const;
+
+export type TripLogisticsKind = "transport" | "stay";
+
+export interface TripLogistics {
+  id: string;
+  trip_id: string;
+  kind: TripLogisticsKind;
+  label: string;
+  from_location: string | null;
+  to_location: string | null;
+  start_date: string | null;
+  start_time: string | null;
+  end_date: string | null;
+  end_time: string | null;
+  booking_ref: string | null;
+  cost: number | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export const TRANSPORT_MODES = ["Flight", "Train", "Bus", "Cab", "Car", "Ferry", "Other"] as const;
+
+export type TripItemKind = "itinerary" | "packing" | "wishlist";
+
+export interface TripItem {
+  id: string;
+  trip_id: string;
+  kind: TripItemKind;
+  title: string;
+  notes: string | null;
+  day_date: string | null;
+  time: string | null;
+  category: string | null;
+  done: boolean;
+  created_at: string;
+}
+
+export const WISHLIST_CATEGORIES = [
+  { key: "food", label: "Food", emoji: "🍽" },
+  { key: "sight", label: "Sight", emoji: "🏛" },
+  { key: "shopping", label: "Shopping", emoji: "🛍" },
+  { key: "activity", label: "Activity", emoji: "🎡" },
+  { key: "other", label: "Other", emoji: "✨" },
+] as const;
 
 /** A direct payment one partner makes to the other to clear (all or part of) the running split balance. */
 export interface Settlement {
