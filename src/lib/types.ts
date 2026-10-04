@@ -202,6 +202,7 @@ export interface Trip {
   cover_emoji: string;
   notes: string | null;
   memory_id: string | null;
+  cover_photo_url: string | null;
   created_at: string;
 }
 
@@ -223,6 +224,8 @@ export interface TripLogistics {
   booking_ref: string | null;
   cost: number | null;
   notes: string | null;
+  document_url: string | null;
+  document_name: string | null;
   created_at: string;
 }
 

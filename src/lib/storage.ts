@@ -12,6 +12,9 @@ export type StorageBucket = "memory-media" | "reference-photos";
  *
  * iPhone photos (HEIC/HEIF) are auto-converted to JPEG here so they preview
  * correctly everywhere — browsers can't render HEIC natively.
+ *
+ * Non-image files (PDFs, etc.) pass straight through untouched - this is how
+ * trip ticket/booking confirmation uploads are handled (see trips/actions.ts).
  */
 export async function uploadMediaFile(bucket: StorageBucket, file: File, folder = ""): Promise<string> {
   const supabase = getSupabaseServerClient();

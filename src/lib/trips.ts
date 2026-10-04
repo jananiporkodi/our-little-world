@@ -15,6 +15,34 @@ export function tripDurationDays(trip: Trip): number {
   return daysBetween(trip.start_date, new Date(trip.end_date + "T00:00:00Z")) + 1;
 }
 
+// A small set of hand-picked gradient pairs, each named after the Tailwind theme colors already
+// used throughout the app (peach, blush, lavender, accent) - used as the trip page's background
+// "pattern" when the couple hasn't uploaded a cover photo of their own.
+const THEME_GRADIENTS = [
+  "linear-gradient(135deg, #ffd9c2 0%, #ffc9d6 100%)",
+  "linear-gradient(135deg, #d8c9f0 0%, #ffc9d6 100%)",
+  "linear-gradient(135deg, #ffd9c2 0%, #d8c9f0 100%)",
+  "linear-gradient(135deg, #ffc9d6 0%, #e0556f 100%)",
+  "linear-gradient(135deg, #d8c9f0 0%, #ffd9c2 100%)",
+];
+
+/** A small hash so the same trip always gets the same fallback gradient. */
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+/**
+ * The CSS `background` value for a trip's themed page: the couple's own uploaded cover photo when
+ * there is one, otherwise a deterministic gradient "pattern" so every trip still feels visually
+ * distinct even without a photo.
+ */
+export function tripThemeBackground(trip: Trip): string {
+  if (trip.cover_photo_url) return `url(${trip.cover_photo_url})`;
+  return THEME_GRADIENTS[hashString(trip.id) % THEME_GRADIENTS.length];
+}
+
 /** Every "YYYY-MM-DD" date the trip covers, for building a day-by-day itinerary. */
 export function tripDayKeys(trip: Trip): string[] {
   const [sy, sm, sd] = trip.start_date.split("-").map(Number);

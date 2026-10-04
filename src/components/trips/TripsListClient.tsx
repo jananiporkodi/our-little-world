@@ -6,7 +6,7 @@ import { useFormStatus } from "react-dom";
 import type { Trip } from "@/lib/types";
 import { TRIP_EMOJIS } from "@/lib/types";
 import { formatDateRange } from "@/lib/dates";
-import { getTripState, tripDurationDays } from "@/lib/trips";
+import { getTripState, tripDurationDays, tripThemeBackground } from "@/lib/trips";
 import { addTrip, deleteTrip } from "@/app/(app)/trips/actions";
 
 const STATE_CHIP: Record<string, string> = {
@@ -76,6 +76,12 @@ function AddTripForm({ onDone }: { onDone: () => void }) {
         <input type="date" name="endDate" min={startDate} className="input-field" title="End date" />
       </div>
       <textarea name="notes" placeholder="Any notes? (optional)" className="input-field" rows={2} />
+      <div>
+        <label className="block text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">
+          Cover photo (optional) — themes the trip page
+        </label>
+        <input type="file" name="coverPhoto" accept="image/*" className="input-field !py-2 text-xs" />
+      </div>
       <div className="flex gap-2 pt-1">
         <SubmitButton label="add trip" pendingLabel="Adding…" />
         <button type="button" onClick={onDone} className="btn-ghost !py-2 !px-3 text-sm">
@@ -93,7 +99,11 @@ function TripCard({ trip }: { trip: Trip }) {
   const days = tripDurationDays(trip);
 
   return (
-    <div className="card-panel p-4 flex items-start gap-3">
+    <div className="card-panel p-4 flex items-start gap-3 overflow-hidden relative">
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1.5"
+        style={{ background: tripThemeBackground(trip), backgroundSize: "cover", backgroundPosition: "center" }}
+      />
       <span className="text-3xl leading-none">{trip.cover_emoji}</span>
       <div className="flex-1 min-w-0">
         <Link href={`/trips/${trip.id}`} className="font-hand text-2xl leading-tight hover:text-accent transition">

@@ -7,7 +7,7 @@ import type { Trip, TripLogistics, TripItem, Expense } from "@/lib/types";
 import { TRIP_EMOJIS, TRANSPORT_MODES, WISHLIST_CATEGORIES, EXPENSE_CATEGORIES } from "@/lib/types";
 import { formatFriendlyDate, formatDateRange, todayIST } from "@/lib/dates";
 import { formatTimeRange } from "@/lib/plans";
-import { getTripState, tripDurationDays, tripDayKeys } from "@/lib/trips";
+import { getTripState, tripDurationDays, tripDayKeys, tripThemeBackground } from "@/lib/trips";
 import {
   updateTrip,
   deleteTrip,
@@ -59,6 +59,7 @@ function EditTripForm({ trip, onDone }: { trip: Trip; onDone: () => void }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [emoji, setEmoji] = useState(trip.cover_emoji);
   const [startDate, setStartDate] = useState(trip.start_date);
+  const [removeCoverPhoto, setRemoveCoverPhoto] = useState(false);
 
   return (
     <form
@@ -66,6 +67,7 @@ function EditTripForm({ trip, onDone }: { trip: Trip; onDone: () => void }) {
       action={async (formData) => {
         formData.set("tripId", trip.id);
         formData.set("coverEmoji", emoji);
+        if (removeCoverPhoto) formData.set("removeCoverPhoto", "1");
         await updateTrip(formData);
         onDone();
       }}
@@ -99,6 +101,21 @@ function EditTripForm({ trip, onDone }: { trip: Trip; onDone: () => void }) {
         <input type="date" name="endDate" defaultValue={trip.end_date} min={startDate} className="input-field" />
       </div>
       <textarea name="notes" defaultValue={trip.notes ?? ""} placeholder="Notes (optional)" className="input-field" rows={2} />
+      <div>
+        <label className="block text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">
+          Cover photo — themes this page
+        </label>
+        {trip.cover_photo_url && !removeCoverPhoto ? (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-ink-soft">has a cover photo</span>
+            <button type="button" onClick={() => setRemoveCoverPhoto(true)} className="text-accent underline underline-offset-2">
+              remove
+            </button>
+          </div>
+        ) : (
+          <input type="file" name="coverPhoto" accept="image/*" className="input-field !py-2 text-xs" />
+        )}
+      </div>
       <div className="flex gap-2">
         <SubmitButton label="save changes" pendingLabel="Saving…" />
         <button type="button" onClick={onDone} className="btn-ghost !py-1.5 !px-3 text-xs">
@@ -147,31 +164,56 @@ function TripHeader({ trip }: { trip: Trip }) {
   const state = getTripState(trip);
   const days = tripDurationDays(trip);
 
+  const hasPhoto = Boolean(trip.cover_photo_url);
+
   return (
-    <div className="card-panel p-5 mb-5">
+    <div className="card-panel p-0 mb-5 overflow-hidden">
+      <div
+        className="p-5"
+        style={{
+          background: hasPhoto
+            ? `linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.45)), ${tripThemeBackground(trip)}`
+            : tripThemeBackground(trip),
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
       {editing ? (
-        <EditTripForm trip={trip} onDone={() => setEditing(false)} />
+        <div className={hasPhoto ? "bg-white/90 dark:bg-black/70 rounded-xl p-3 -m-3" : ""}>
+          <EditTripForm trip={trip} onDone={() => setEditing(false)} />
+        </div>
       ) : converting ? (
-        <ConvertToMemoryForm trip={trip} onDone={() => setConverting(false)} />
+        <div className={hasPhoto ? "bg-white/90 dark:bg-black/70 rounded-xl p-3 -m-3" : ""}>
+          <ConvertToMemoryForm trip={trip} onDone={() => setConverting(false)} />
+        </div>
       ) : (
         <>
           <div className="flex items-start gap-3">
             <span className="text-4xl leading-none">{trip.cover_emoji}</span>
-            <div className="flex-1 min-w-0">
-              <p className="font-hand text-3xl leading-tight">{trip.title}</p>
-              {trip.destination && <p className="text-sm text-ink-soft mt-0.5">📍 {trip.destination}</p>}
-              <p className="text-[11px] text-ink-soft mt-1">
+            <div className={`flex-1 min-w-0 ${hasPhoto ? "drop-shadow" : ""}`}>
+              <p className={`font-hand text-3xl leading-tight ${hasPhoto ? "text-white" : ""}`}>{trip.title}</p>
+              {trip.destination && (
+                <p className={`text-sm mt-0.5 ${hasPhoto ? "text-white/90" : "text-ink-soft"}`}>📍 {trip.destination}</p>
+              )}
+              <p className={`text-[11px] mt-1 ${hasPhoto ? "text-white/80" : "text-ink-soft"}`}>
                 {formatDateRange(trip.start_date, trip.end_date)} · {days} day{days === 1 ? "" : "s"}
               </p>
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                 <span className={`chip text-[10px] !py-0.5 !px-2 ${STATE_CHIP[state]}`}>{STATE_LABEL[state]}</span>
                 {trip.memory_id && (
-                  <Link href={`/memories?open=${trip.memory_id}`} className="text-accent text-xs underline underline-offset-2">
+                  <Link
+                    href={`/memories?open=${trip.memory_id}`}
+                    className={`text-xs underline underline-offset-2 ${hasPhoto ? "text-white" : "text-accent"}`}
+                  >
                     ♥ view memory
                   </Link>
                 )}
               </div>
-              {trip.notes && <p className="text-sm text-ink-soft mt-2 whitespace-pre-line">{trip.notes}</p>}
+              {trip.notes && (
+                <p className={`text-sm mt-2 whitespace-pre-line ${hasPhoto ? "text-white/90" : "text-ink-soft"}`}>
+                  {trip.notes}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap gap-2 mt-3">
@@ -199,6 +241,7 @@ function TripHeader({ trip }: { trip: Trip }) {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }
@@ -356,6 +399,12 @@ function AddLogisticsForm({
         <input type="number" name="cost" step="0.01" min="0" placeholder="Cost ₹ (optional)" className="input-field text-xs" />
         <input name="notes" placeholder="Notes (optional)" className="input-field text-xs" />
       </div>
+      <div>
+        <label className="block text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">
+          {kind === "transport" ? "Ticket" : "Booking confirmation"} (optional)
+        </label>
+        <input type="file" name="document" accept="image/*,.pdf" className="input-field !py-2 text-xs" />
+      </div>
       <div className="flex gap-2">
         <SubmitButton label="add" pendingLabel="Adding…" />
         <button type="button" onClick={onDone} className="btn-ghost !py-1.5 !px-3 text-xs">
@@ -406,6 +455,16 @@ function LogisticsSection({
                   {dateRange && <p className="text-[11px] text-ink-soft">{dateRange}{timeRange ? ` · ${timeRange}` : ""}</p>}
                   {l.booking_ref && <p className="text-[11px] text-ink-soft">ref: {l.booking_ref}</p>}
                   {l.notes && <p className="text-[11px] text-ink-soft italic">{l.notes}</p>}
+                  {l.document_url && (
+                    <a
+                      href={l.document_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-accent underline underline-offset-2 inline-block mt-0.5"
+                    >
+                      📎 {kind === "transport" ? "view ticket" : "view confirmation"}
+                    </a>
+                  )}
                 </div>
                 <div className="text-right flex-shrink-0">
                   {l.cost != null && <p className="font-bold text-sm">{formatINR(l.cost)}</p>}

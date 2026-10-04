@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { uploadManyMediaFiles } from "@/lib/storage";
+import { uploadManyMediaFiles, uploadMediaFile } from "@/lib/storage";
 import { notifyOtherPartner, getActorName } from "@/lib/push";
 import type { TripLogisticsKind, TripItemKind } from "@/lib/types";
 
@@ -14,8 +14,12 @@ export async function addTrip(formData: FormData) {
   const endDate = endDateRaw && endDateRaw >= startDate ? endDateRaw : startDate;
   const coverEmoji = String(formData.get("coverEmoji") ?? "").trim() || "🧳";
   const notes = String(formData.get("notes") ?? "").trim() || null;
+  const coverPhoto = formData.get("coverPhoto") as File | null;
 
   if (!title || !startDate) return;
+
+  const coverPhotoUrl =
+    coverPhoto && coverPhoto.size > 0 ? await uploadMediaFile("reference-photos", coverPhoto, "trip-covers") : null;
 
   const supabase = getSupabaseServerClient();
   const { data: trip, error } = await supabase
@@ -27,6 +31,7 @@ export async function addTrip(formData: FormData) {
       end_date: endDate,
       cover_emoji: coverEmoji,
       notes,
+      cover_photo_url: coverPhotoUrl,
     })
     .select()
     .single();
@@ -56,14 +61,20 @@ export async function updateTrip(formData: FormData) {
   const endDate = endDateRaw && endDateRaw >= startDate ? endDateRaw : startDate;
   const coverEmoji = String(formData.get("coverEmoji") ?? "").trim() || "🧳";
   const notes = String(formData.get("notes") ?? "").trim() || null;
+  const coverPhoto = formData.get("coverPhoto") as File | null;
+  const removeCoverPhoto = formData.get("removeCoverPhoto") === "1";
 
   if (!title || !startDate) return;
 
+  const update: Record<string, unknown> = { title, destination, start_date: startDate, end_date: endDate, cover_emoji: coverEmoji, notes };
+  if (coverPhoto && coverPhoto.size > 0) {
+    update.cover_photo_url = await uploadMediaFile("reference-photos", coverPhoto, "trip-covers");
+  } else if (removeCoverPhoto) {
+    update.cover_photo_url = null;
+  }
+
   const supabase = getSupabaseServerClient();
-  const { error } = await supabase
-    .from("trips")
-    .update({ title, destination, start_date: startDate, end_date: endDate, cover_emoji: coverEmoji, notes })
-    .eq("id", tripId);
+  const { error } = await supabase.from("trips").update(update).eq("id", tripId);
   if (error) throw error;
 
   revalidatePath("/trips");
@@ -155,6 +166,11 @@ export async function addLogistics(formData: FormData) {
   const costRaw = String(formData.get("cost") ?? "").trim();
   const cost = costRaw ? Number(costRaw) : null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
+  const document = formData.get("document") as File | null;
+
+  const documentUrl =
+    document && document.size > 0 ? await uploadMediaFile("reference-photos", document, "trip-documents") : null;
+  const documentName = document && document.size > 0 ? document.name : null;
 
   const supabase = getSupabaseServerClient();
   const { error } = await supabase.from("trip_logistics").insert({
@@ -170,6 +186,8 @@ export async function addLogistics(formData: FormData) {
     booking_ref: bookingRef,
     cost: cost && !Number.isNaN(cost) ? cost : null,
     notes,
+    document_url: documentUrl,
+    document_name: documentName,
   });
   if (error) throw error;
 
