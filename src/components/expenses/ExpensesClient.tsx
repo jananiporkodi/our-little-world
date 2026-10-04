@@ -204,6 +204,32 @@ function BarRow({ label, emoji, amount, max }: { label: string; emoji: string; a
   );
 }
 
+/** Short month label for chart axes, e.g. "Sep '26". */
+function shortMonthLabel(ym: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }) + ` '${String(y).slice(2)}`;
+}
+
+function TrendChart({ months }: { months: { key: string; total: number }[] }) {
+  const max = Math.max(1, ...months.map((m) => m.total));
+  return (
+    <div className="flex items-end gap-2.5 h-32 px-1">
+      {months.map((m) => {
+        const pct = m.total > 0 ? Math.max(4, Math.round((m.total / max) * 100)) : 0;
+        return (
+          <div key={m.key} className="flex-1 flex flex-col items-center justify-end h-full gap-1 group">
+            <span className="text-[10px] font-bold opacity-0 group-hover:opacity-100 transition">
+              {m.total > 0 ? formatINR(m.total) : ""}
+            </span>
+            <div className="w-full rounded-t-md bg-accent/80 transition-all" style={{ height: `${pct}%` }} />
+            <span className="text-[10px] text-ink-soft whitespace-nowrap">{shortMonthLabel(m.key)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function ExpensesClient({
   expenses,
   settlements,
@@ -241,6 +267,43 @@ export default function ExpensesClient({
     setFrom(dates.reduce((a, b) => (a < b ? a : b)));
     setTo(dates.reduce((a, b) => (a > b ? a : b)));
   }
+
+  function jumpToMonth(ym: string) {
+    if (!ym) return;
+    const bounds = currentMonthBounds(`${ym}-01`);
+    setFrom(bounds.from);
+    setTo(bounds.to);
+  }
+
+  // Every calendar month that has at least one expense, newest first - powers the month quick-jump dropdown.
+  const availableMonths = useMemo(() => {
+    const set = new Set(expenses.map((e) => e.expense_date.slice(0, 7)));
+    return Array.from(set).sort((a, b) => (a < b ? 1 : -1));
+  }, [expenses]);
+
+  // Which month (if any) the current from/to range exactly matches, so the dropdown reflects the active filter.
+  const selectedMonth = useMemo(() => {
+    const bounds = currentMonthBounds(from);
+    return bounds.from === from && bounds.to === to ? from.slice(0, 7) : "";
+  }, [from, to]);
+
+  // Spend per calendar month across ALL expenses (not the active filter) - last 6 months, oldest to newest.
+  const monthlyTrend = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const e of expenses) {
+      const key = e.expense_date.slice(0, 7);
+      totals.set(key, (totals.get(key) ?? 0) + e.amount);
+    }
+    const today = todayIST();
+    const [ty, tm] = today.split("-").map(Number);
+    const months: { key: string; total: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(Date.UTC(ty, tm - 1 - i, 1));
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+      months.push({ key, total: totals.get(key) ?? 0 });
+    }
+    return months;
+  }, [expenses]);
 
   const filtered = useMemo(
     () => expenses.filter((e) => e.expense_date >= from && e.expense_date <= to),
@@ -324,6 +387,23 @@ export default function ExpensesClient({
         <button onClick={showAllTime} className="btn-ghost !py-2 !px-3 text-xs">
           all time
         </button>
+        {availableMonths.length > 0 && (
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">Jump to month</label>
+            <select
+              value={selectedMonth}
+              onChange={(e) => jumpToMonth(e.target.value)}
+              className="input-field !w-auto text-sm"
+            >
+              <option value="">custom range</option>
+              {availableMonths.map((ym) => (
+                <option key={ym} value={ym}>
+                  {monthLabel(ym)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <button onClick={() => setAdding(true)} className="btn-primary !py-2 !px-4 text-sm ml-auto">
           + add expense
         </button>
@@ -431,9 +511,16 @@ export default function ExpensesClient({
         </div>
       )}
 
+      {monthlyTrend.some((m) => m.total > 0) && (
+        <div className="card-panel p-5 mb-5">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft mb-3">Spending trend (last 6 months)</p>
+          <TrendChart months={monthlyTrend} />
+        </div>
+      )}
+
       {stats.categories.length > 0 && (
         <div className="card-panel p-5 mb-5">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft mb-3">By category</p>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft mb-3">By category{selectedMonth || from !== to ? " (in range)" : ""}</p>
           <div className="space-y-2.5">
             {stats.categories.map((c) => {
               const meta = categoryMeta(c.key);
