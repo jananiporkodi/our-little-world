@@ -211,6 +211,17 @@ export async function getTrip(tripId: string): Promise<Trip | null> {
   return data as Trip | null;
 }
 
+export async function getTripMemories(tripId: string): Promise<Memory[]> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("memories")
+    .select("*")
+    .eq("trip_id", tripId)
+    .order("memory_date", { ascending: true });
+  if (error) throw error;
+  return data as Memory[];
+}
+
 export async function getTripLogistics(tripId: string): Promise<TripLogistics[]> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase

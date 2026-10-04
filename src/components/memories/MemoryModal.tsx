@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import type { BucketItem, Memory, Place, Plan } from "@/lib/types";
+import type { BucketItem, Memory, Place, Plan, Trip } from "@/lib/types";
 import { REACTION_EMOJIS } from "@/lib/types";
 import { formatFriendlyDate } from "@/lib/dates";
 import { reactToMemory, toggleMemoryFavorite } from "@/app/(app)/memories/actions";
@@ -15,6 +15,7 @@ export default function MemoryModal({
   plans,
   bucketItems,
   places,
+  trips = [],
   partnerNames,
   onClose,
 }: {
@@ -22,6 +23,7 @@ export default function MemoryModal({
   plans: Plan[];
   bucketItems: BucketItem[];
   places: Place[];
+  trips?: Trip[];
   partnerNames: { a: string; b: string };
   onClose: () => void;
 }) {
@@ -35,6 +37,7 @@ export default function MemoryModal({
   const relatedPlan = plans.find((p) => p.memory_id === memory.id);
   const relatedBucketItem = bucketItems.find((b) => b.id === memory.bucket_item_id);
   const relatedPlace = places.find((p) => p.id === memory.place_id);
+  const relatedTrip = trips.find((t) => t.id === memory.trip_id);
 
   function next() {
     setPhotoIndex((i) => (i + 1) % photos.length);
@@ -75,7 +78,13 @@ export default function MemoryModal({
 
         {editing ? (
           <div className="p-5">
-            <EditMemoryForm memory={memory} places={places} partnerNames={partnerNames} onDone={() => setEditing(false)} />
+            <EditMemoryForm
+              memory={memory}
+              places={places}
+              trips={trips}
+              partnerNames={partnerNames}
+              onDone={() => setEditing(false)}
+            />
           </div>
         ) : (
           <>
@@ -178,7 +187,7 @@ export default function MemoryModal({
                 </div>
               )}
 
-              {(relatedPlan || relatedBucketItem || relatedPlace) && (
+              {(relatedPlan || relatedBucketItem || relatedPlace || relatedTrip) && (
                 <div className="flex flex-wrap gap-2 mt-4">
                   {relatedPlan && (
                     <span className="chip bg-blush text-accent text-[11px]">🗓 from plan: {relatedPlan.title}</span>
@@ -189,6 +198,11 @@ export default function MemoryModal({
                   {relatedPlace && (
                     <Link href={`/places?place=${relatedPlace.id}`} className="chip bg-blush text-accent text-[11px]">
                       📍 {relatedPlace.name}
+                    </Link>
+                  )}
+                  {relatedTrip && (
+                    <Link href={`/trips/${relatedTrip.id}`} className="chip bg-blush text-accent text-[11px]">
+                      {relatedTrip.cover_emoji} {relatedTrip.title}
                     </Link>
                   )}
                 </div>

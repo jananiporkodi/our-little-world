@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { addMemory } from "@/app/(app)/memories/actions";
 import { todayIST } from "@/lib/dates";
+import type { Trip } from "@/lib/types";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -14,7 +15,15 @@ function SubmitButton() {
   );
 }
 
-export default function AddMemoryForm({ autoOpen = false, onClose }: { autoOpen?: boolean; onClose?: () => void }) {
+export default function AddMemoryForm({
+  autoOpen = false,
+  trips = [],
+  onClose,
+}: {
+  autoOpen?: boolean;
+  trips?: Trip[];
+  onClose?: () => void;
+}) {
   const [open, setOpen] = useState(autoOpen);
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -71,6 +80,16 @@ export default function AddMemoryForm({ autoOpen = false, onClose }: { autoOpen?
         </select>
         <input name="tags" placeholder="tags, comma, separated" className="input-field" />
       </div>
+      {trips.length > 0 && (
+        <select name="tripId" className="input-field" defaultValue="__none__">
+          <option value="__none__">no linked trip</option>
+          {trips.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.cover_emoji} {t.title}
+            </option>
+          ))}
+        </select>
+      )}
       <input type="file" name="photos" accept="image/*,video/*" multiple className="input-field !py-2 text-xs" />
       <div className="flex gap-2 pt-1">
         <SubmitButton />

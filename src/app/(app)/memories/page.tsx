@@ -1,4 +1,4 @@
-import { getMemories, getPlans, getBucketItems, getPlaces, getPartnerNames } from "@/lib/data";
+import { getMemories, getPlans, getBucketItems, getPlaces, getPartnerNames, getTrips } from "@/lib/data";
 import MemoriesClient from "@/components/memories/MemoriesClient";
 
 export const dynamic = "force-dynamic";
@@ -8,12 +8,13 @@ export default async function MemoriesPage({
 }: {
   searchParams: { open?: string };
 }) {
-  const [memories, plans, bucketItems, places, partnerNames] = await Promise.all([
+  const [memories, plans, bucketItems, places, partnerNames, trips] = await Promise.all([
     getMemories(),
     getPlans(),
     getBucketItems(),
     getPlaces(),
     getPartnerNames(),
+    getTrips(),
   ]);
 
   return (
@@ -23,6 +24,7 @@ export default async function MemoriesPage({
       bucketItems={bucketItems}
       places={places}
       partnerNames={partnerNames}
+      trips={trips}
       initialOpenId={searchParams.open ?? null}
     />
   );

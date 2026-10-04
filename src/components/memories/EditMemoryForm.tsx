@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import { useFormStatus } from "react-dom";
-import type { Memory, Place } from "@/lib/types";
+import type { Memory, Place, Trip } from "@/lib/types";
 import { updateMemory, deleteMemory } from "@/app/(app)/memories/actions";
 
 function Submit() {
@@ -18,11 +18,13 @@ function Submit() {
 export default function EditMemoryForm({
   memory,
   places,
+  trips = [],
   partnerNames,
   onDone,
 }: {
   memory: Memory;
   places: Place[];
+  trips?: Trip[];
   partnerNames: { a: string; b: string };
   onDone: () => void;
 }) {
@@ -161,6 +163,20 @@ export default function EditMemoryForm({
           </div>
         )}
       </div>
+
+      {trips.length > 0 && (
+        <div>
+          <label className="text-[11px] font-bold uppercase tracking-wide text-ink-soft block mb-1">Trip</label>
+          <select name="tripId" defaultValue={memory.trip_id ?? "__none__"} className="input-field">
+            <option value="__none__">no linked trip</option>
+            {trips.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.cover_emoji} {t.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <div>

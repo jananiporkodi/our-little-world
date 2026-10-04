@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { BucketItem, Memory, Place, Plan } from "@/lib/types";
+import type { BucketItem, Memory, Place, Plan, Trip } from "@/lib/types";
 import MemoryCard from "./MemoryCard";
 import MemoryModal from "./MemoryModal";
 import AddMemoryForm from "./AddMemoryForm";
@@ -12,6 +12,7 @@ export default function MemoriesClient({
   bucketItems,
   places,
   partnerNames,
+  trips,
   initialOpenId,
 }: {
   memories: Memory[];
@@ -19,6 +20,7 @@ export default function MemoriesClient({
   bucketItems: BucketItem[];
   places: Place[];
   partnerNames: { a: string; b: string };
+  trips: Trip[];
   initialOpenId: string | null;
 }) {
   const [openId, setOpenId] = useState<string | null>(initialOpenId);
@@ -35,7 +37,7 @@ export default function MemoriesClient({
       <p className="text-sm text-ink-soft mb-6">a scrapbook that&apos;s still being written</p>
 
       <div className="mb-6">
-        <AddMemoryForm />
+        <AddMemoryForm trips={trips} />
       </div>
 
       {memories.length === 0 ? (
@@ -55,6 +57,7 @@ export default function MemoriesClient({
           bucketItems={bucketItems}
           places={places}
           partnerNames={partnerNames}
+          trips={trips}
           onClose={() => setOpenId(null)}
         />
       )}

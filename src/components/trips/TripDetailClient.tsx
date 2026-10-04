@@ -3,7 +3,8 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
-import type { Trip, TripLogistics, TripItem, Expense } from "@/lib/types";
+import Image from "next/image";
+import type { Trip, TripLogistics, TripItem, Expense, Memory } from "@/lib/types";
 import { TRIP_EMOJIS, TRANSPORT_MODES, WISHLIST_CATEGORIES, EXPENSE_CATEGORIES } from "@/lib/types";
 import { formatFriendlyDate, formatDateRange, todayIST } from "@/lib/dates";
 import { formatTimeRange } from "@/lib/plans";
@@ -724,6 +725,52 @@ function TripExpensesSection({
   );
 }
 
+// ---------- Memories & collage ----------
+
+function TripMemoriesSection({ memories }: { memories: Memory[] }) {
+  if (memories.length === 0) {
+    return (
+      <SectionCard title="Memories from this trip">
+        <p className="text-xs text-ink-soft italic">
+          No memories linked yet — when adding or editing a memory, link it to this trip to see it here.
+        </p>
+      </SectionCard>
+    );
+  }
+
+  const collagePhotos = memories.flatMap((m) => m.photos ?? []).slice(0, 9);
+
+  return (
+    <SectionCard title="Memories from this trip">
+      {collagePhotos.length > 0 && (
+        <div className="grid grid-cols-3 gap-1.5 mb-3">
+          {collagePhotos.map((url, i) => (
+            <Link
+              key={`${url}-${i}`}
+              href={`/memories?open=${memories.find((m) => m.photos?.includes(url))?.id ?? ""}`}
+              className="relative aspect-square rounded-lg overflow-hidden block"
+            >
+              <Image src={url} alt="" fill sizes="150px" className="object-cover" />
+            </Link>
+          ))}
+        </div>
+      )}
+      <div className="space-y-1.5">
+        {memories.map((m) => (
+          <Link
+            key={m.id}
+            href={`/memories?open=${m.id}`}
+            className="flex items-center justify-between text-sm border-b last:border-0 border-black/[0.05] dark:border-white/5 pb-1.5 last:pb-0 hover:text-accent transition"
+          >
+            <span className="truncate">{m.title || "untitled memory"}</span>
+            <span className="text-[11px] text-ink-soft flex-shrink-0 ml-2">{formatFriendlyDate(m.memory_date)}</span>
+          </Link>
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
 // ---------- Page ----------
 
 export default function TripDetailClient({
@@ -731,12 +778,14 @@ export default function TripDetailClient({
   logistics,
   items,
   expenses,
+  memories,
   partnerNames,
 }: {
   trip: Trip;
   logistics: TripLogistics[];
   items: TripItem[];
   expenses: Expense[];
+  memories: Memory[];
   partnerNames: { a: string; b: string };
 }) {
   const dayKeys = useMemo(() => tripDayKeys(trip), [trip]);
@@ -751,6 +800,7 @@ export default function TripDetailClient({
       <LogisticsSection tripId={trip.id} logistics={logistics} kind="transport" title="Transport" />
       <LogisticsSection tripId={trip.id} logistics={logistics} kind="stay" title="Stay" />
       <TripExpensesSection tripId={trip.id} expenses={expenses} names={partnerNames} />
+      <TripMemoriesSection memories={memories} />
       <ChecklistSection
         tripId={trip.id}
         items={items}

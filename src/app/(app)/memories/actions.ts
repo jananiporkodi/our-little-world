@@ -47,6 +47,8 @@ export async function addMemory(formData: FormData) {
     ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean)
     : [];
   const files = formData.getAll("photos") as File[];
+  const tripIdRaw = String(formData.get("tripId") ?? "").trim();
+  const tripId = tripIdRaw && tripIdRaw !== "__none__" ? tripIdRaw : null;
 
   const photoUrls = await uploadManyMediaFiles("memory-media", files, "memories");
 
@@ -61,6 +63,7 @@ export async function addMemory(formData: FormData) {
       memory_date: memoryDate,
       tags,
       photos: photoUrls,
+      trip_id: tripId,
     })
     .select()
     .single();
@@ -80,6 +83,10 @@ export async function addMemory(formData: FormData) {
   revalidatePath("/memories");
   revalidatePath("/gallery");
   revalidatePath("/", "layout");
+  if (tripId) {
+    revalidatePath("/trips");
+    revalidatePath(`/trips/${tripId}`);
+  }
 
   await notifyOtherPartnerOfMemory(title || "");
   const actorName = await getActorName();
@@ -133,6 +140,8 @@ export async function updateMemory(formData: FormData) {
   const noteA = String(formData.get("noteA") ?? "").trim() || null;
   const noteB = String(formData.get("noteB") ?? "").trim() || null;
   const isFavorite = formData.get("isFavorite") === "on";
+  const tripIdRaw = String(formData.get("tripId") ?? "").trim();
+  const tripId = tripIdRaw && tripIdRaw !== "__none__" ? tripIdRaw : null;
 
   const keptPhotos = formData.getAll("existingPhotos").map(String).filter(Boolean);
   const newFiles = formData.getAll("newPhotos") as File[];
@@ -164,6 +173,7 @@ export async function updateMemory(formData: FormData) {
     note_a: noteA,
     note_b: noteB,
     is_favorite: isFavorite,
+    trip_id: tripId,
   };
   if (memoryDate) update.memory_date = memoryDate;
   if (placeId !== undefined) update.place_id = placeId;
@@ -189,6 +199,8 @@ export async function updateMemory(formData: FormData) {
   revalidatePath("/gallery");
   revalidatePath("/places");
   revalidatePath("/", "layout");
+  revalidatePath("/trips");
+  if (tripId) revalidatePath(`/trips/${tripId}`);
 }
 
 export async function toggleMemoryFavorite(memoryId: string, value: boolean) {

@@ -122,6 +122,7 @@ export async function convertTripToMemory(formData: FormData) {
       memory_date: trip.end_date,
       tags,
       photos: photoUrls,
+      trip_id: tripId,
     })
     .select()
     .single();

@@ -31,6 +31,7 @@ export interface Memory {
   is_favorite: boolean;
   note_a: string | null;
   note_b: string | null;
+  trip_id: string | null;
   created_at: string;
 }
 
