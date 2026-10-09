@@ -1,7 +1,134 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+
+// ---- Music box: an original little waltz, synthesized live (no audio files, no copyrighted tunes) ----
+
+const UNIT = 0.3; // seconds per eighth note
+const N = {
+  C4: 261.63, G3: 196, F3: 174.61, A3: 220, E3: 164.81,
+  C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880, B5: 987.77, C6: 1046.5, D6: 1174.66,
+};
+// Each bar: 6 eighth-note melody slots (0 = rest) and a bass root.
+const BARS: { m: number[]; bass: number; fifth: number }[] = [
+  { m: [N.E5, N.G5, N.C6, N.G5, N.E5, N.G5], bass: N.C4, fifth: N.G3 },
+  { m: [N.D5, N.G5, N.B5, N.G5, N.D5, N.G5], bass: N.G3, fifth: N.D5 / 2 },
+  { m: [N.C5, N.E5, N.A5, N.E5, N.C5, N.E5], bass: N.A3, fifth: N.E3 * 2 },
+  { m: [N.C5, N.F5, N.A5, N.F5, N.C5, N.F5], bass: N.F3, fifth: N.C4 },
+  { m: [N.E5, N.G5, N.C6, N.B5, N.A5, N.G5], bass: N.C4, fifth: N.G3 },
+  { m: [N.F5, N.A5, N.C6, N.A5, N.F5, N.A5], bass: N.F3, fifth: N.C4 },
+  { m: [N.G5, N.B5, N.D6, N.B5, N.G5, N.B5], bass: N.G3, fifth: N.D5 / 2 },
+  { m: [N.C6, 0, N.E5, N.G5, N.C6, 0], bass: N.C4, fifth: N.G3 },
+];
+const LOOP_SECONDS = BARS.length * 6 * UNIT;
+
+function useMusicBox() {
+  const ctxRef = useRef<AudioContext | null>(null);
+  const masterRef = useRef<GainNode | null>(null);
+  const echoRef = useRef<DelayNode | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const nextLoopRef = useRef(0);
+  const [playing, setPlaying] = useState(false);
+
+  const note = useCallback((ctx: AudioContext, dest: AudioNode, freq: number, when: number, vol: number, len: number) => {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(vol, when + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + len);
+    g.connect(dest);
+    const o1 = ctx.createOscillator();
+    o1.type = "sine";
+    o1.frequency.value = freq;
+    o1.connect(g);
+    const o2 = ctx.createOscillator();
+    o2.type = "triangle";
+    o2.frequency.value = freq * 2;
+    const g2 = ctx.createGain();
+    g2.gain.value = 0.25;
+    o2.connect(g2);
+    g2.connect(g);
+    o1.start(when);
+    o2.start(when);
+    o1.stop(when + len + 0.05);
+    o2.stop(when + len + 0.05);
+  }, []);
+
+  const scheduleLoop = useCallback(
+    (ctx: AudioContext, dest: AudioNode, start: number) => {
+      BARS.forEach((bar, b) => {
+        const barStart = start + b * 6 * UNIT;
+        bar.m.forEach((f, i) => {
+          if (f) note(ctx, dest, f, barStart + i * UNIT, 0.5, 1.3);
+        });
+        note(ctx, dest, bar.bass, barStart, 0.35, 1.6);
+        note(ctx, dest, bar.fifth, barStart + 3 * UNIT, 0.18, 1.0);
+      });
+    },
+    [note]
+  );
+
+  const start = useCallback(() => {
+    type WebkitWindow = typeof window & { webkitAudioContext?: typeof AudioContext };
+    const AudioCtx = window.AudioContext || (window as WebkitWindow).webkitAudioContext;
+    if (!AudioCtx) return;
+    if (!ctxRef.current) {
+      const ctx = new AudioCtx();
+      // A soft echo gives it the shimmery music-box feel.
+      const delay = ctx.createDelay();
+      delay.delayTime.value = 0.32;
+      const feedback = ctx.createGain();
+      feedback.gain.value = 0.28;
+      delay.connect(feedback);
+      feedback.connect(delay);
+      delay.connect(ctx.destination);
+      echoRef.current = delay;
+      ctxRef.current = ctx;
+    }
+    const ctx = ctxRef.current;
+    // A fresh master per start, so notes queued before a pause can't leak into the next play.
+    masterRef.current?.disconnect();
+    const master = ctx.createGain();
+    master.gain.value = 0.22;
+    master.connect(ctx.destination);
+    master.connect(echoRef.current!);
+    masterRef.current = master;
+    void ctx.resume();
+    nextLoopRef.current = ctx.currentTime + 0.1;
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      // Keep one loop scheduled ahead.
+      while (nextLoopRef.current < ctx.currentTime + 2) {
+        scheduleLoop(ctx, master, nextLoopRef.current);
+        nextLoopRef.current += LOOP_SECONDS;
+      }
+    }, 400);
+    setPlaying(true);
+  }, [scheduleLoop]);
+
+  const stop = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+    const ctx = ctxRef.current;
+    const master = masterRef.current;
+    if (ctx && master) {
+      // Quick fade, then cut this play's whole signal path so queued notes never sound.
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.1);
+      setTimeout(() => master.disconnect(), 500);
+    }
+    setPlaying(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      void ctxRef.current?.close();
+    };
+  }, []);
+
+  return { playing, start, stop };
+}
 
 interface Photo {
   url: string;
@@ -163,6 +290,7 @@ export default function BirthdayClient({
 }) {
   const [candleLit, setCandleLit] = useState(true);
   const [burst, setBurst] = useState(1);
+  const music = useMusicBox();
 
   function blowOut() {
     if (!candleLit) {
@@ -171,6 +299,8 @@ export default function BirthdayClient({
     }
     setCandleLit(false);
     setBurst((b) => b + 1);
+    // Browsers only allow sound after a tap, so the first candle tap kicks the music off too.
+    if (!music.playing) music.start();
   }
 
   return (
@@ -197,6 +327,8 @@ export default function BirthdayClient({
         .bday-a-sway { animation-name: bday-a-sway }
         .bday-a-twinkle { animation-name: bday-a-twinkle }
         .bday-a-pulse { animation-name: bday-a-pulse }
+        @keyframes bday-eq { 0%,100% { height: 4px } 50% { height: 16px } }
+        .bday-eq { animation: bday-eq .7s ease-in-out infinite; }
         @keyframes bday-tick { 0% { transform: rotate(0) } 100% { transform: rotate(360deg) } }
         .bday-hand { transform-origin: 20px 20px; animation: bday-tick 4s linear infinite; }
         @keyframes bday-drip { 0%,100% { transform: translateY(0) scale(1) } 50% { transform: translateY(3px) scale(1.15) } }
@@ -205,6 +337,23 @@ export default function BirthdayClient({
 
       <BackgroundIcons />
       <Confetti burst={burst} />
+
+      <button
+        onClick={() => (music.playing ? music.stop() : music.start())}
+        className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full bg-white/90 shadow-lg px-4 py-2.5 text-sm font-semibold text-ink hover:scale-105 transition"
+        aria-label={music.playing ? "Pause music" : "Play music"}
+      >
+        <span className="flex items-end gap-[2px] h-4" aria-hidden>
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className={`w-[3px] rounded-full bg-accent ${music.playing ? "bday-eq" : ""}`}
+              style={{ height: music.playing ? undefined : 5, animationDelay: `${i * 0.18}s` }}
+            />
+          ))}
+        </span>
+        {music.playing ? "pause music" : "play music 🎵"}
+      </button>
 
       {BALLOONS.map((b, i) => (
         <div key={i} className="bday-balloon" style={{ left: b.left, animationDelay: `${b.delay}s` }} aria-hidden>
