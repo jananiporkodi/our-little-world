@@ -48,18 +48,11 @@ function Confetti({ burst }: { burst: number }) {
   );
 }
 
-const HEARTS = [
-  { left: "8%", size: 18, dur: 9, delay: 0 },
-  { left: "24%", size: 14, dur: 11, delay: 3 },
-  { left: "41%", size: 20, dur: 10, delay: 6 },
-  { left: "58%", size: 15, dur: 12, delay: 1.5 },
-  { left: "74%", size: 19, dur: 9.5, delay: 4.5 },
-  { left: "90%", size: 16, dur: 11, delay: 7.5 },
-];
+// ---- Small background icons (each animates in place) ----
 
-function WatchIcon() {
+function WatchSvg() {
   return (
-    <svg width="34" height="34" viewBox="0 0 40 40" className="bday-bob" style={{ animationDelay: ".4s" }}>
+    <svg width="1em" height="1em" viewBox="0 0 40 40">
       <rect x="13" y="2" width="14" height="8" rx="2" fill="#9a8f8f" />
       <rect x="13" y="30" width="14" height="8" rx="2" fill="#9a8f8f" />
       <circle cx="20" cy="20" r="12" fill="#fff" stroke="#2f2a2a" strokeWidth="2.5" />
@@ -72,21 +65,9 @@ function WatchIcon() {
   );
 }
 
-function CafeIcon() {
+function PaniPooriSvg() {
   return (
-    <span className="relative inline-block bday-bob" style={{ animationDelay: ".9s" }}>
-      <span className="text-3xl leading-none">☕</span>
-      <svg width="30" height="16" viewBox="0 0 30 16" className="absolute -top-3 left-1/2 -translate-x-1/2" aria-hidden>
-        <path className="bday-steam" d="M9 14 C5 9 13 7 9 2" stroke="#b8aeae" strokeWidth="1.6" fill="none" strokeLinecap="round" />
-        <path className="bday-steam" style={{ animationDelay: ".7s" }} d="M18 14 C14 9 22 7 18 2" stroke="#b8aeae" strokeWidth="1.6" fill="none" strokeLinecap="round" />
-      </svg>
-    </span>
-  );
-}
-
-function PaniPooriIcon() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 40 40" className="bday-bob" style={{ animationDelay: "1.3s" }}>
+    <svg width="1em" height="1em" viewBox="0 0 40 40">
       <circle cx="20" cy="24" r="12" fill="#e9b45d" />
       <circle cx="16" cy="20" r="3" fill="#f6d28b" opacity=".7" />
       <ellipse cx="20" cy="14" rx="7" ry="3" fill="#7a4a1f" />
@@ -96,16 +77,69 @@ function PaniPooriIcon() {
   );
 }
 
-const ICON_ROW: { label: string; node: React.ReactNode }[] = [
-  { label: "road trips", node: <span className="bday-bob text-3xl" style={{ animationDelay: "0s" }}>🚗</span> },
-  { label: "late nights", node: <span className="bday-bob text-3xl" style={{ animationDelay: ".2s" }}>🌙</span> },
-  { label: "fresh veggies", node: <span className="bday-bob text-3xl" style={{ animationDelay: ".6s" }}>🥕🥦</span> },
-  { label: "every moment", node: <WatchIcon /> },
-  { label: "wanderlust", node: <span className="bday-bob text-3xl" style={{ animationDelay: "1.1s" }}>✈️</span> },
-  { label: "cafe dates", node: <CafeIcon /> },
-  { label: "panipoori", node: <PaniPooriIcon /> },
-  { label: "always", node: <span className="bday-bob text-3xl" style={{ animationDelay: "1.6s" }}>❤️</span> },
+const BG_ICONS: React.ReactNode[] = [
+  "🚗",
+  "🌙",
+  "🥕",
+  <WatchSvg key="watch" />,
+  "✈️",
+  "☕",
+  <PaniPooriSvg key="pani" />,
+  "❤️",
+  "🥦",
+  "🍅",
+  "💗",
 ];
+
+const ANIMS = ["bday-a-bob", "bday-a-sway", "bday-a-twinkle", "bday-a-pulse"];
+
+function BackgroundIcons() {
+  const icons = useMemo(() => {
+    const COLS = 6;
+    const ROWS = 11;
+    const out: { left: number; top: number; icon: React.ReactNode; anim: string; delay: number; dur: number; size: number }[] = [];
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const i = r * COLS + c;
+        // Deterministic jitter so the pattern looks scattered but never changes between renders.
+        const jx = ((i * 53) % 100) / 100 - 0.5;
+        const jy = ((i * 31) % 100) / 100 - 0.5;
+        out.push({
+          left: ((c + 0.5 + jx * 0.7 + (r % 2) * 0.5) / COLS) * 100,
+          top: ((r + 0.5 + jy * 0.6) / ROWS) * 100,
+          icon: BG_ICONS[(i * 7 + r) % BG_ICONS.length],
+          anim: ANIMS[i % ANIMS.length],
+          delay: (i % 11) * 0.37,
+          dur: 2.4 + (i % 5) * 0.5,
+          size: 18 + (i % 3) * 4,
+        });
+      }
+    }
+    return out;
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden>
+      {icons.map((ic, i) => (
+        <span
+          key={i}
+          className={`absolute ${ic.anim}`}
+          style={{
+            left: `${ic.left}%`,
+            top: `${ic.top}%`,
+            fontSize: ic.size,
+            lineHeight: 1,
+            opacity: 0.28,
+            animationDelay: `${ic.delay}s`,
+            animationDuration: `${ic.dur}s`,
+          }}
+        >
+          {ic.icon}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 const BALLOONS = [
   { left: "6%", color: "#e0556f", delay: 0, size: 54 },
@@ -152,26 +186,24 @@ export default function BirthdayClient({
         .bday-pop { animation: bday-pop .8s cubic-bezier(.2,.8,.3,1) both; }
         @keyframes bday-rise { from { transform: translateY(24px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
         .bday-rise { animation: bday-rise .8s ease both; }
-        @keyframes bday-plane { 0% { transform: translateX(-12vw) translateY(0) rotate(-4deg) } 50% { transform: translateX(50vw) translateY(-14px) rotate(2deg) } 100% { transform: translateX(112vw) translateY(0) rotate(-4deg) } }
-        .bday-plane { position: fixed; top: 9%; left: 0; font-size: 30px; animation: bday-plane 16s linear infinite; z-index: 1; pointer-events: none; }
-        @keyframes bday-car { 0% { transform: translateX(112vw) scaleX(-1) } 100% { transform: translateX(-14vw) scaleX(-1) } }
-        @keyframes bday-bounce { 0%,100% { margin-bottom: 0 } 50% { margin-bottom: 3px } }
-        .bday-car { position: fixed; bottom: 6px; left: 0; font-size: 30px; animation: bday-car 14s linear infinite; z-index: 1; pointer-events: none; }
-        .bday-car span { display: inline-block; animation: bday-bounce .35s ease-in-out infinite; }
-        @keyframes bday-glow { 0%,100% { filter: drop-shadow(0 0 4px #f7c948); transform: rotate(-8deg) } 50% { filter: drop-shadow(0 0 14px #f7c948); transform: rotate(8deg) } }
-        .bday-moon { position: fixed; top: 14px; right: 18px; font-size: 38px; animation: bday-glow 4s ease-in-out infinite; z-index: 1; pointer-events: none; }
-        @keyframes bday-bob { 0%,100% { transform: translateY(0) rotate(-6deg) } 50% { transform: translateY(-10px) rotate(6deg) } }
-        .bday-bob { display: inline-block; animation: bday-bob 2.6s ease-in-out infinite; }
+
+        /* Background icons: each one animates in place */
+        @keyframes bday-a-bob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
+        @keyframes bday-a-sway { 0%,100% { transform: rotate(-12deg) } 50% { transform: rotate(12deg) } }
+        @keyframes bday-a-twinkle { 0%,100% { transform: scale(1); opacity: .15 } 50% { transform: scale(1.25); opacity: .4 } }
+        @keyframes bday-a-pulse { 0%,100% { transform: scale(.9) } 50% { transform: scale(1.18) } }
+        .bday-a-bob, .bday-a-sway, .bday-a-twinkle, .bday-a-pulse { animation-iteration-count: infinite; animation-timing-function: ease-in-out; }
+        .bday-a-bob { animation-name: bday-a-bob }
+        .bday-a-sway { animation-name: bday-a-sway }
+        .bday-a-twinkle { animation-name: bday-a-twinkle }
+        .bday-a-pulse { animation-name: bday-a-pulse }
         @keyframes bday-tick { 0% { transform: rotate(0) } 100% { transform: rotate(360deg) } }
-        .bday-hand { transform-origin: 50% 50%; animation: bday-tick 4s linear infinite; }
-        @keyframes bday-steam { 0% { transform: translateY(0) scaleX(1); opacity: 0 } 40% { opacity: .8 } 100% { transform: translateY(-14px) scaleX(1.6); opacity: 0 } }
-        .bday-steam { animation: bday-steam 2s ease-out infinite; transform-origin: 50% 100%; }
-        @keyframes bday-heart-up { 0% { transform: translateY(0) scale(.6); opacity: 0 } 15% { opacity: .9 } 100% { transform: translateY(-105vh) scale(1.2); opacity: 0 } }
-        .bday-heart { position: fixed; bottom: -30px; z-index: 1; pointer-events: none; animation: bday-heart-up linear infinite; }
+        .bday-hand { transform-origin: 20px 20px; animation: bday-tick 4s linear infinite; }
         @keyframes bday-drip { 0%,100% { transform: translateY(0) scale(1) } 50% { transform: translateY(3px) scale(1.15) } }
         .bday-drip { animation: bday-drip 1.4s ease-in-out infinite; transform-origin: 50% 0; }
       `}</style>
 
+      <BackgroundIcons />
       <Confetti burst={burst} />
 
       {BALLOONS.map((b, i) => (
@@ -183,21 +215,6 @@ export default function BirthdayClient({
             <path d="M20 48 C14 58 26 66 20 82" stroke="#9a8f8f" strokeWidth="1.2" fill="none" />
           </svg>
         </div>
-      ))}
-
-      {/* Ambient animated icons */}
-      <div className="bday-plane" aria-hidden>✈️</div>
-      <div className="bday-car" aria-hidden><span>🚗</span></div>
-      <div className="bday-moon" aria-hidden>🌙</div>
-      {HEARTS.map((h, i) => (
-        <span
-          key={i}
-          className="bday-heart"
-          aria-hidden
-          style={{ left: h.left, fontSize: h.size, animationDuration: `${h.dur}s`, animationDelay: `${h.delay}s` }}
-        >
-          {i % 2 === 0 ? "❤️" : "💗"}
-        </span>
       ))}
 
       <main className="relative z-10 max-w-3xl mx-auto px-5 py-10 sm:py-16">
@@ -289,18 +306,6 @@ export default function BirthdayClient({
                 <p className="font-patrick text-lg leading-snug">{w.text}</p>
               </div>
             ))}
-          </div>
-
-          <div className="bg-white/70 rounded-3xl shadow-sm px-4 py-5">
-            <p className="font-hand text-2xl text-center mb-4">things that remind me of us</p>
-            <div className="flex flex-wrap justify-center gap-x-6 gap-y-5">
-              {ICON_ROW.map((it) => (
-                <div key={it.label} className="flex flex-col items-center gap-1.5 w-16">
-                  <div className="h-10 flex items-center justify-center">{it.node}</div>
-                  <span className="text-[10px] text-ink-soft text-center leading-tight">{it.label}</span>
-                </div>
-              ))}
-            </div>
           </div>
 
           {daysTogether !== null && (
