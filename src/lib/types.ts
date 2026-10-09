@@ -189,6 +189,32 @@ export interface Expense {
   expense_date: string;
   notes: string | null;
   trip_id: string | null;
+  card_id: string | null;
+  created_at: string;
+}
+
+export const CARD_NETWORKS = ["Visa", "Mastercard", "Amex", "RuPay", "Diners", "Discover", "Other"] as const;
+export const REWARD_TYPES = [
+  { key: "cashback", label: "Cashback" },
+  { key: "points", label: "Points" },
+  { key: "miles", label: "Miles" },
+] as const;
+
+export interface CreditCard {
+  id: string;
+  name: string;
+  last4: string | null;
+  network: string;
+  credit_limit: number | null;
+  billing_day: number | null;
+  due_day: number | null;
+  reward_type: string;
+  reward_rate_general: number;
+  /** category key -> reward rate (%), overriding reward_rate_general for that category */
+  reward_rules: Record<string, number>;
+  color: string;
+  notes: string | null;
+  is_active: boolean;
   created_at: string;
 }
 
