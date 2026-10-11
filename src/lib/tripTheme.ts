@@ -60,6 +60,27 @@ export const TRIP_THEMES: Record<string, TripTheme> = {
     gradient: "linear-gradient(135deg, #cdeee4 0%, #e6f5d5 100%)",
     icons: ["🛶", "🌴", "🥥", "🐟", "🌾", "🦆", "🍃", "🌅"],
   },
+  japan: {
+    key: "japan",
+    label: "Japan & sakura",
+    emoji: "🌸",
+    gradient: "linear-gradient(135deg, #ffd9e6 0%, #fff0f3 50%, #e6dcff 100%)",
+    icons: ["🌸", "🗻", "⛩️", "🍣", "🍜", "🎎", "🚅", "🏮"],
+  },
+  europe: {
+    key: "europe",
+    label: "Europe",
+    emoji: "🏰",
+    gradient: "linear-gradient(135deg, #dfe7ff 0%, #ffe9d6 100%)",
+    icons: ["🗼", "🥐", "🏰", "🚂", "🍷", "🎻", "⛲", "🧀"],
+  },
+  snow: {
+    key: "snow",
+    label: "Snow & winter",
+    emoji: "❄️",
+    gradient: "linear-gradient(135deg, #e3f2ff 0%, #f4f8ff 100%)",
+    icons: ["❄️", "⛷️", "🏂", "⛄", "🧤", "🎿", "🔥", "☕"],
+  },
   default: {
     key: "default",
     label: "Classic",
@@ -73,6 +94,9 @@ export const THEME_OPTIONS = Object.values(TRIP_THEMES);
 
 // Checked in order; the first theme with a matching word wins.
 const KEYWORDS: [string, string[]][] = [
+  ["japan", ["japan", "tokyo", "kyoto", "osaka", "hokkaido", "hiroshima", "okinawa", "fuji", "sapporo", "nagoya", "yokohama", "hakone", "nippon"]],
+  ["snow", ["snow", "ski", "iceland", "norway", "finland", "lapland", "gulmarg", "winter", "alaska", "canada", "tromso"]],
+  ["europe", ["europe", "france", "paris", "italy", "rome", "venice", "florence", "milan", "spain", "barcelona", "madrid", "germany", "berlin", "munich", "amsterdam", "netherlands", "belgium", "prague", "vienna", "austria", "greece", "athens", "santorini", "portugal", "lisbon", "london", "united kingdom", "england", "scotland", "ireland", "dublin", "budapest", "poland", "croatia", "swiss", "switzerland", "zurich", "denmark", "copenhagen", "sweden", "stockholm"]],
   ["backwaters", ["kerala", "alleppey", "alappuzha", "kumarakom", "kochi", "cochin", "backwater"]],
   ["beach", ["goa", "beach", "maldives", "bali", "andaman", "phuket", "pondicherry", "puducherry", "gokarna", "kovalam", "varkala", "lakshadweep", "island", "pattaya", "krabi", "mauritius", "seychelles", "vizag", "visakhapatnam", "alibaug", "diu", "daman", "mahabalipuram", "rameswaram", "kanyakumari", "havelock"]],
   ["mountains", ["manali", "shimla", "ladakh", "leh", "himalaya", "kashmir", "srinagar", "ooty", "munnar", "darjeeling", "kodaikanal", "coorg", "nepal", "switzerland", "spiti", "kasol", "mussoorie", "nainital", "rishikesh", "dharamshala", "mcleodganj", "gangtok", "sikkim", "shillong", "meghalaya", "hill", "mountain", "lonavala", "mahabaleshwar", "araku", "yercaud", "wayanad", "chikmagalur", "kedarnath", "badrinath", "auli", "tawang"]],
