@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import Image from "next/image";
@@ -9,7 +9,6 @@ import { paymentLabel } from "@/lib/cards";
 import PaymentSelect from "@/components/expenses/PaymentSelect";
 import AddMemoryForm from "@/components/memories/AddMemoryForm";
 import { TripFinanceBar, TripAnalysis } from "./TripFinance";
-import TripThemeBackdrop from "./TripThemeBackdrop";
 import { resolveTripTheme, THEME_OPTIONS } from "@/lib/tripTheme";
 import { TRIP_EMOJIS, TRANSPORT_MODES, WISHLIST_CATEGORIES, EXPENSE_CATEGORIES } from "@/lib/types";
 import { formatFriendlyDate, formatDateRange, todayIST } from "@/lib/dates";
@@ -25,7 +24,8 @@ import {
   toggleTripItem,
   deleteTripItem,
 } from "@/app/(app)/trips/actions";
-import { addExpense } from "@/app/(app)/expenses/actions";
+import { deleteExpense } from "@/app/(app)/expenses/actions";
+import { ExpenseForm } from "@/components/expenses/ExpensesClient";
 
 function formatINR(n: number): string {
   return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
@@ -189,10 +189,10 @@ function TripHeader({ trip }: { trip: Trip }) {
   return (
     <div className="card-panel p-0 mb-5 overflow-hidden">
       <div
-        className="p-5"
+        className={`p-5 ${hasPhoto && !editing && !converting ? "min-h-[230px] flex flex-col justify-end" : ""}`}
         style={{
           background: hasPhoto
-            ? `linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.45)), ${tripThemeBackground(trip)}`
+            ? `linear-gradient(to top, rgba(0,0,0,0.6), rgba(0,0,0,0.05) 70%), ${tripThemeBackground(trip)}`
             : tripThemeBackground(trip),
           backgroundSize: "cover",
           backgroundPosition: "center",
@@ -328,8 +328,16 @@ function ItinerarySection({ tripId, items, dayKeys }: { tripId: string; items: T
               <div className="space-y-1">
                 {dayItems.map((item) => (
                   <div key={item.id} className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={item.done}
+                      disabled={pending}
+                      onChange={(e) => startTransition(() => toggleTripItem(item.id, tripId, e.target.checked))}
+                      className="mt-1 accent-[var(--accent,#e8798a)] flex-shrink-0"
+                      aria-label={`Mark ${item.title} done`}
+                    />
                     {item.time && <span className="text-ink-soft text-xs w-14 flex-shrink-0">{item.time}</span>}
-                    <span className="flex-1">{item.title}</span>
+                    <span className={`flex-1 ${item.done ? "line-through text-ink-soft" : ""}`}>{item.title}</span>
                     <button
                       disabled={pending}
                       onClick={() => startTransition(() => deleteTripItem(item.id, tripId))}
@@ -604,84 +612,34 @@ function ChecklistSection({
 
 // ---------- Expenses ----------
 
-function AddTripExpenseForm({
-  tripId,
-  names,
-  cards,
-  financeClosed,
-  defaultPaidBy,
-  onDone,
-}: {
-  tripId: string;
-  names: { a: string; b: string };
-  cards: CreditCard[];
-  financeClosed: boolean;
-  defaultPaidBy: "partner_a" | "partner_b";
-  onDone: () => void;
-}) {
-  const formRef = useRef<HTMLFormElement>(null);
-  const firstCard = cards.find((c) => c.is_active);
-  return (
-    <form
-      ref={formRef}
-      action={async (formData) => {
-        formData.set("tripId", tripId);
-        await addExpense(formData);
-        formRef.current?.reset();
-        onDone();
-      }}
-      className="flex flex-wrap items-center gap-2 mt-2"
-    >
-      <input name="title" placeholder="Taxi, dinner…" className="input-field flex-1 min-w-[120px] text-xs" required />
-      <input type="number" name="amount" step="0.01" min="0" placeholder="₹" className="input-field !w-20 text-xs" required />
-      <input type="date" name="expenseDate" defaultValue={todayIST()} className="input-field !w-[130px] text-xs" required />
-      <select name="category" defaultValue="travel" className="input-field !w-auto text-xs">
-        {EXPENSE_CATEGORIES.map((c) => (
-          <option key={c.key} value={c.key}>
-            {c.emoji} {c.label}
-          </option>
-        ))}
-      </select>
-      <select name="paidBy" defaultValue={defaultPaidBy} className="input-field !w-auto text-xs">
-        <option value="partner_a">Paid by {names.a}</option>
-        <option value="partner_b">Paid by {names.b}</option>
-      </select>
-      <PaymentSelect
-        cards={cards}
-        defaultValue={firstCard ? `card:${firstCard.id}` : ""}
-        className="input-field !w-auto text-xs"
-      />
-      <label className="flex items-center gap-1 text-[11px] text-ink-soft">
-        <input type="checkbox" name="isShared" defaultChecked className="w-3.5 h-3.5" />
-        split
-      </label>
-      <SubmitButton label="add" pendingLabel="Adding…" />
-      <button type="button" onClick={onDone} className="btn-ghost !py-1.5 !px-3 text-xs">
-        cancel
-      </button>
-      {financeClosed && (
-        <p className="w-full text-[11px] font-semibold text-amber-700 bg-amber-100 rounded-lg px-3 py-1.5">
-          Finances for this trip are closed — adding this will change its numbers.
-        </p>
-      )}
-    </form>
-  );
-}
-
 function TripExpensesSection({
-  tripId,
+  trip,
   expenses,
   names,
   cards,
   financeClosed,
+  defaultPaidBy,
 }: {
-  tripId: string;
+  trip: Trip;
   expenses: Expense[];
   names: { a: string; b: string };
   cards: CreditCard[];
   financeClosed: boolean;
+  defaultPaidBy: "partner_a" | "partner_b";
 }) {
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<Expense | null>(null);
+  // Once finances are closed the list folds away; open it only when needed.
+  const [expanded, setExpanded] = useState(!financeClosed);
+  const [deletePending, startDeleteTransition] = useTransition();
+  const sorted = useMemo(
+    () => [...expenses].sort((a, b) => (a.expense_date < b.expense_date ? 1 : -1)),
+    [expenses]
+  );
+  // Closing finances folds the list away automatically; reopening shows it again.
+  useEffect(() => {
+    setExpanded(!financeClosed);
+  }, [financeClosed]);
 
   const stats = useMemo(() => {
     let total = 0;
@@ -731,34 +689,84 @@ function TripExpensesSection({
         </div>
       </div>
 
-      {expenses.length === 0 ? (
-        <p className="text-xs text-ink-soft italic">no expenses logged for this trip yet</p>
-      ) : (
-        <div className="space-y-1.5">
-          {expenses.map((e) => (
-            <div key={e.id} className="flex items-center justify-between text-sm border-b last:border-0 border-black/[0.05] dark:border-white/5 pb-1.5 last:pb-0">
-              <div className="min-w-0">
-                <p className="truncate">{e.title}</p>
-                <p className="text-[11px] text-ink-soft">
-                  {formatFriendlyDate(e.expense_date)} · {e.paid_by === "partner_a" ? names.a : names.b}
-                  {e.payment_method ? ` · ${paymentLabel(e, cards)}` : ""}
-                </p>
-              </div>
-              <p className="font-bold flex-shrink-0 ml-2">{formatINR(e.amount)}</p>
-            </div>
-          ))}
-        </div>
+      {financeClosed && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="btn-ghost !py-1 !px-2.5 text-[11px] mb-2"
+        >
+          {expanded ? "▾ hide" : "▸ show"} all {expenses.length} expenses
+        </button>
       )}
 
+      {expanded &&
+        (expenses.length === 0 ? (
+          <p className="text-xs text-ink-soft italic">no expenses logged for this trip yet</p>
+        ) : (
+          <div className="overflow-x-auto -mx-1">
+            <table className="w-full text-sm min-w-[720px]">
+              <thead>
+                <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-ink-soft border-b border-black/10 dark:border-white/10">
+                  <th className="py-2 px-2">Date</th>
+                  <th className="py-2 px-2">Title</th>
+                  <th className="py-2 px-2">Category</th>
+                  <th className="py-2 px-2">Paid by</th>
+                  <th className="py-2 px-2">Paid with</th>
+                  <th className="py-2 px-2">Split</th>
+                  <th className="py-2 px-2 text-right">Amount</th>
+                  <th className="py-2 px-2 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((e) => {
+                  const meta = EXPENSE_CATEGORIES.find((c) => c.key === e.category) ?? EXPENSE_CATEGORIES[EXPENSE_CATEGORIES.length - 1];
+                  return (
+                    <tr key={e.id} className="border-b last:border-0 border-black/[0.05] dark:border-white/5">
+                      <td className="py-2 px-2 whitespace-nowrap text-ink-soft text-xs">{formatFriendlyDate(e.expense_date)}</td>
+                      <td className="py-2 px-2">
+                        <p className="font-semibold truncate max-w-[180px]">{e.title}</p>
+                        {e.notes && <p className="text-[11px] text-ink-soft italic truncate max-w-[180px]">{e.notes}</p>}
+                      </td>
+                      <td className="py-2 px-2 whitespace-nowrap text-xs">
+                        {meta.emoji} {meta.label}
+                      </td>
+                      <td className="py-2 px-2 whitespace-nowrap text-xs">{e.paid_by === "partner_a" ? names.a : names.b}</td>
+                      <td className="py-2 px-2 whitespace-nowrap text-xs">{paymentLabel(e, cards)}</td>
+                      <td className="py-2 px-2 whitespace-nowrap text-xs">{e.is_shared ? "split" : "personal"}</td>
+                      <td className="py-2 px-2 whitespace-nowrap text-right font-bold">{formatINR(e.amount)}</td>
+                      <td className="py-2 px-2 whitespace-nowrap text-right">
+                        <button
+                          onClick={() => setEditing(e)}
+                          className="text-[11px] text-ink-soft underline underline-offset-2 mr-2.5"
+                        >
+                          edit
+                        </button>
+                        <button
+                          disabled={deletePending}
+                          onClick={() => startDeleteTransition(() => deleteExpense(e.id))}
+                          className="text-[11px] text-accent underline underline-offset-2"
+                        >
+                          delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ))}
+
       {adding ? (
-        <AddTripExpenseForm
-          tripId={tripId}
-          names={names}
-          cards={cards}
-          financeClosed={financeClosed}
-          defaultPaidBy="partner_a"
-          onDone={() => setAdding(false)}
-        />
+        <div className="mt-3">
+          <ExpenseForm
+            names={names}
+            trips={[trip]}
+            cards={cards}
+            defaultPaidBy={defaultPaidBy}
+            defaultTripId={trip.id}
+            onDone={() => setAdding(false)}
+          />
+        </div>
       ) : (
         <button onClick={() => setAdding(true)} className="btn-ghost !py-1 !px-2.5 text-[11px] text-accent mt-2">
           + add expense
@@ -767,6 +775,24 @@ function TripExpensesSection({
       <Link href="/expenses" className="block text-[11px] text-ink-soft underline underline-offset-2 mt-2">
         manage all expenses →
       </Link>
+
+      {editing && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          onClick={() => setEditing(null)}
+        >
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(ev) => ev.stopPropagation()}>
+            <ExpenseForm
+              expense={editing}
+              names={names}
+              trips={[trip]}
+              cards={cards}
+              defaultPaidBy={editing.paid_by}
+              onDone={() => setEditing(null)}
+            />
+          </div>
+        </div>
+      )}
     </SectionCard>
   );
 }
@@ -865,7 +891,6 @@ export default function TripDetailClient({
 
   return (
     <div className="relative">
-      <TripThemeBackdrop theme={resolveTripTheme(trip)} />
       <div className="relative z-10">
       <Link href="/trips" className="text-[11px] text-ink-soft underline underline-offset-2 mb-3 inline-block">
         ← all trips
@@ -877,21 +902,14 @@ export default function TripDetailClient({
       <LogisticsSection tripId={trip.id} logistics={logistics} kind="transport" title="Transport" />
       <LogisticsSection tripId={trip.id} logistics={logistics} kind="stay" title="Stay" />
       <TripExpensesSection
-        tripId={trip.id}
+        trip={trip}
         expenses={expenses}
         names={partnerNames}
         cards={cards}
         financeClosed={financeClosed}
+        defaultPaidBy="partner_a"
       />
       <TripMemoriesSection tripId={trip.id} memories={memories} />
-      <ChecklistSection
-        tripId={trip.id}
-        items={items}
-        kind="wishlist"
-        title="Wishlist"
-        placeholder="Restaurant, sight, activity…"
-        showCategory
-      />
       <ChecklistSection tripId={trip.id} items={items} kind="packing" title="Packing list" placeholder="What to pack…" />
       </div>
     </div>

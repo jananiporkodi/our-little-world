@@ -15,23 +15,7 @@ function categoryMeta(key: string) {
   return EXPENSE_CATEGORIES.find((c) => c.key === key) ?? EXPENSE_CATEGORIES[EXPENSE_CATEGORIES.length - 1];
 }
 
-function Bar({ label, amount, max, total }: { label: string; amount: number; max: number; total: number }) {
-  const pct = max > 0 ? Math.max(4, Math.round((amount / max) * 100)) : 0;
-  const share = total > 0 ? Math.round((amount / total) * 100) : 0;
-  return (
-    <div>
-      <div className="flex justify-between text-xs mb-1">
-        <span>{label}</span>
-        <span className="font-bold">
-          {formatINR(amount)} <span className="font-normal text-ink-soft">· {share}%</span>
-        </span>
-      </div>
-      <div className="h-2 rounded-full bg-black/[0.05] dark:bg-white/10 overflow-hidden">
-        <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
+const PALETTE = ["#f4a58a", "#e8798a", "#b9a3e3", "#7fc8b2", "#f2c66d", "#7fb5e8", "#e59ac7", "#a8c97f"];
 
 /** Close / reopen the trip's finances, plus a one-tap way to tag everything not yet recorded. */
 export function TripFinanceBar({ trip, expenses, cards }: { trip: Trip; expenses: Expense[]; cards: CreditCard[] }) {
@@ -100,7 +84,7 @@ export function TripFinanceBar({ trip, expenses, cards }: { trip: Trip; expenses
   );
 }
 
-/** Where the trip's money went, how it was paid, and what card points were earned vs. missed. */
+/** A playful look at where the trip's money went, how it was paid, and which card points were won or lost. */
 export function TripAnalysis({
   expenses,
   cards,
@@ -112,10 +96,13 @@ export function TripAnalysis({
   names: { a: string; b: string };
   dayCount: number;
 }) {
+  const [showAllMethods, setShowAllMethods] = useState(false);
+
   const a = useMemo(() => {
     let total = 0;
     const byCategory = new Map<string, number>();
     const byMethod = new Map<string, number>();
+    const byDay = new Map<string, number>();
     const byPerson = { partner_a: 0, partner_b: 0 };
     let earnedPoints = 0;
     let earnedValue = 0;
@@ -129,6 +116,7 @@ export function TripAnalysis({
       byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + e.amount);
       const method = paymentLabel(e, cards);
       byMethod.set(method, (byMethod.get(method) ?? 0) + e.amount);
+      byDay.set(e.expense_date, (byDay.get(e.expense_date) ?? 0) + e.amount);
       byPerson[e.paid_by] += e.amount;
 
       if (e.payment_method === "credit_card") {
@@ -167,87 +155,186 @@ export function TripAnalysis({
       .filter((r) => r.points >= 0.5)
       .sort((x, y) => y.value - x.value);
     const top = [...expenses].sort((x, y) => y.amount - x.amount).slice(0, 5);
+    const priciestDay = Array.from(byDay.entries()).sort((x, y) => y[1] - x[1])[0] ?? null;
+    const smallest = [...expenses].sort((x, y) => x.amount - y.amount)[0] ?? null;
 
-    return { total, categories, methods, byPerson, earnedPoints, earnedValue, missedPoints, missedValue, untaggedTotal, leakRows, top };
+    return {
+      total,
+      categories,
+      methods,
+      byPerson,
+      earnedPoints,
+      earnedValue,
+      missedPoints,
+      missedValue,
+      untaggedTotal,
+      leakRows,
+      top,
+      priciestDay,
+      smallest,
+    };
   }, [expenses, cards]);
 
   if (expenses.length === 0) {
     return (
-      <div className="card-panel p-4 mb-5">
-        <p className="font-hand text-xl mb-1">Spend analysis</p>
-        <p className="text-xs text-ink-soft italic">Add some trip expenses and the breakdown shows up here.</p>
+      <div className="card-panel p-4 mb-5 text-center">
+        <p className="text-3xl mb-1">🪙</p>
+        <p className="font-hand text-xl mb-1">Spend story</p>
+        <p className="text-xs text-ink-soft italic">Add some trip expenses and the fun breakdown shows up here.</p>
       </div>
     );
   }
 
   const perDay = a.total / Math.max(1, dayCount);
-  const maxCat = a.categories[0]?.amount ?? 0;
-  const maxMethod = a.methods[0]?.amount ?? 0;
   const hasCards = cards.some((c) => c.is_active);
+  const topCat = a.categories[0];
+  const topMeta = topCat ? categoryMeta(topCat.key) : null;
+  const toppedBy = a.byPerson.partner_a >= a.byPerson.partner_b ? names.a : names.b;
+  const toppedAmount = Math.max(a.byPerson.partner_a, a.byPerson.partner_b);
+  const bigSpender = a.top[0];
+
+  // Donut via a conic-gradient: each category gets a slice of the ring.
+  let acc = 0;
+  const stops = a.categories.map((c, i) => {
+    const start = (acc / a.total) * 100;
+    acc += c.amount;
+    const end = (acc / a.total) * 100;
+    return `${PALETTE[i % PALETTE.length]} ${start}% ${end}%`;
+  });
+  const donut = `conic-gradient(${stops.join(", ")})`;
+
+  const methodList = showAllMethods ? a.methods : a.methods.slice(0, 4);
 
   return (
-    <div className="card-panel p-4 mb-5">
-      <p className="font-hand text-xl mb-3">Spend analysis</p>
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft">Total</p>
-          <p className="text-lg font-bold">{formatINR(a.total)}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft">Per day</p>
-          <p className="text-lg font-bold">{formatINR(perDay)}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft">Paid by {names.a}</p>
-          <p className="text-lg font-bold">{formatINR(a.byPerson.partner_a)}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft">Paid by {names.b}</p>
-          <p className="text-lg font-bold">{formatINR(a.byPerson.partner_b)}</p>
-        </div>
+    <div className="mb-5 space-y-3">
+      {/* Hero: the big number */}
+      <div
+        className="rounded-2xl p-4 text-center shadow-sm"
+        style={{ background: "linear-gradient(135deg, #ffe3d6 0%, #fbd3e0 50%, #e4d8fb 100%)" }}
+      >
+        <p className="text-[10px] font-bold uppercase tracking-widest text-ink-soft">our trip cost</p>
+        <p className="font-hand text-5xl leading-none my-1 text-ink">{formatINR(a.total)}</p>
+        <p className="text-xs text-ink-soft">
+          that&apos;s about {formatINR(perDay)} a day across {dayCount} day{dayCount === 1 ? "" : "s"} ✨
+        </p>
       </div>
 
-      <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft mb-2">By category</p>
-      <div className="space-y-2 mb-4">
-        {a.categories.map((c) => {
-          const m = categoryMeta(c.key);
-          return <Bar key={c.key} label={`${m.emoji} ${m.label}`} amount={c.amount} max={maxCat} total={a.total} />;
-        })}
-      </div>
-
-      <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft mb-2">How it was paid</p>
-      <div className="space-y-2 mb-4">
-        {a.methods.map((m) => (
-          <Bar key={m.label} label={m.label} amount={m.amount} max={maxMethod} total={a.total} />
-        ))}
-      </div>
-
-      {hasCards && (
-        <div className="rounded-xl bg-peach/40 p-3 mb-4">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft mb-2">Card points</p>
-          <div className="grid grid-cols-2 gap-3 mb-2">
-            <div>
-              <p className="text-[10px] text-ink-soft">Earned on card</p>
-              <p className="text-lg font-bold">{Math.round(a.earnedPoints).toLocaleString("en-IN")} pts</p>
-              <p className="text-[11px] text-ink-soft">≈ {formatINR(a.earnedValue)}</p>
+      {/* Donut + category tiles */}
+      <div className="card-panel p-4">
+        <p className="font-hand text-xl mb-3">Where the money went 🍩</p>
+        <div className="flex flex-col sm:flex-row items-center gap-5">
+          <div className="relative w-36 h-36 flex-shrink-0">
+            <div className="w-full h-full rounded-full" style={{ background: donut }} />
+            <div className="absolute inset-4 rounded-full bg-white dark:bg-neutral-900 flex flex-col items-center justify-center">
+              <span className="text-2xl leading-none">{topMeta?.emoji}</span>
+              <span className="text-[10px] text-ink-soft mt-1">top: {topMeta?.label}</span>
             </div>
-            <div>
-              <p className="text-[10px] text-ink-soft">Missed (paid by debit / UPI / cash)</p>
-              <p className="text-lg font-bold text-accent">{Math.round(a.missedPoints).toLocaleString("en-IN")} pts</p>
-              <p className="text-[11px] text-ink-soft">≈ {formatINR(a.missedValue)}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 flex-1 w-full">
+            {a.categories.map((c, i) => {
+              const m = categoryMeta(c.key);
+              const share = Math.round((c.amount / a.total) * 100);
+              return (
+                <div
+                  key={c.key}
+                  className="rounded-xl p-2.5 border-l-4 bg-black/[0.025] dark:bg-white/5"
+                  style={{ borderColor: PALETTE[i % PALETTE.length] }}
+                >
+                  <p className="text-lg leading-none">{m.emoji}</p>
+                  <p className="text-[11px] text-ink-soft mt-1">{m.label}</p>
+                  <p className="text-sm font-bold">
+                    {formatINR(c.amount)} <span className="text-[10px] font-normal text-ink-soft">· {share}%</span>
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Superlatives */}
+      <div className="grid grid-cols-2 gap-2.5">
+        {bigSpender && (
+          <div className="rounded-2xl p-3 bg-peach/40">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft">🏆 biggest splurge</p>
+            <p className="text-sm font-bold truncate">{bigSpender.title}</p>
+            <p className="text-xs text-ink-soft">{formatINR(bigSpender.amount)}</p>
+          </div>
+        )}
+        {a.priciestDay && (
+          <div className="rounded-2xl p-3 bg-blush/50">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft">🔥 priciest day</p>
+            <p className="text-sm font-bold">{formatFriendlyDate(a.priciestDay[0])}</p>
+            <p className="text-xs text-ink-soft">{formatINR(a.priciestDay[1])}</p>
+          </div>
+        )}
+        <div className="rounded-2xl p-3 bg-lavender/50">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft">💸 chief spender</p>
+          <p className="text-sm font-bold">{toppedBy}</p>
+          <p className="text-xs text-ink-soft">paid {formatINR(toppedAmount)}</p>
+        </div>
+        {a.smallest && (
+          <div className="rounded-2xl p-3 bg-black/[0.04] dark:bg-white/5">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ink-soft">🪙 tiniest buy</p>
+            <p className="text-sm font-bold truncate">{a.smallest.title}</p>
+            <p className="text-xs text-ink-soft">{formatINR(a.smallest.amount)}</p>
+          </div>
+        )}
+      </div>
+
+      {/* How it was paid, as chips */}
+      <div className="card-panel p-4">
+        <p className="font-hand text-xl mb-2">How we paid 💳</p>
+        <div className="flex flex-wrap gap-2">
+          {methodList.map((m, i) => (
+            <span
+              key={m.label}
+              className="rounded-full px-3 py-1.5 text-xs font-semibold"
+              style={{ background: `${PALETTE[(i + 2) % PALETTE.length]}33` }}
+            >
+              {m.label} · {formatINR(m.amount)}
+            </span>
+          ))}
+          {a.methods.length > 4 && (
+            <button onClick={() => setShowAllMethods((v) => !v)} className="text-[11px] text-accent underline">
+              {showAllMethods ? "less" : `+${a.methods.length - 4} more`}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Treasure chest of points */}
+      {hasCards && (
+        <div
+          className="rounded-2xl p-4 border border-amber-300/50"
+          style={{ background: "linear-gradient(135deg, #fff4d6 0%, #ffe8c2 100%)" }}
+        >
+          <p className="font-hand text-xl mb-2 text-ink">Reward treasure 🧰</p>
+          <div className="grid grid-cols-2 gap-3 mb-2">
+            <div className="rounded-xl bg-white/70 p-3 text-center">
+              <p className="text-2xl">🪙</p>
+              <p className="text-xl font-bold">{Math.round(a.earnedPoints).toLocaleString("en-IN")}</p>
+              <p className="text-[11px] text-ink-soft">points won · ≈ {formatINR(a.earnedValue)}</p>
+            </div>
+            <div className="rounded-xl bg-white/70 p-3 text-center">
+              <p className="text-2xl">🕳️</p>
+              <p className="text-xl font-bold text-accent">{Math.round(a.missedPoints).toLocaleString("en-IN")}</p>
+              <p className="text-[11px] text-ink-soft">points that slipped away · ≈ {formatINR(a.missedValue)}</p>
             </div>
           </div>
           {a.leakRows.length > 0 && (
-            <div className="space-y-1 mt-2">
-              <p className="text-[11px] font-semibold">Where the leaks were</p>
+            <div className="space-y-1.5 mt-3">
+              <p className="text-[11px] font-semibold text-ink">Oops, next time use the card for:</p>
               {a.leakRows.map((r) => {
                 const m = categoryMeta(r.key);
                 return (
-                  <p key={r.key} className="text-xs">
-                    {m.emoji} {m.label}: {formatINR(r.amount)} not on a card → +{Math.round(r.points)} pts on {r.cardName} (≈{" "}
-                    {formatINR(r.value)})
-                  </p>
+                  <div key={r.key} className="flex items-center gap-2 rounded-xl bg-white/70 px-3 py-2 text-xs">
+                    <span className="text-lg">{m.emoji}</span>
+                    <span className="flex-1">
+                      {m.label}: {formatINR(r.amount)} off-card → <b>+{Math.round(r.points)} pts</b> on {r.cardName}
+                    </span>
+                    <span className="font-bold text-accent flex-shrink-0">≈ {formatINR(r.value)}</span>
+                  </div>
                 );
               })}
             </div>
@@ -263,16 +350,20 @@ export function TripAnalysis({
         </div>
       )}
 
-      <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft mb-2">Biggest expenses</p>
-      <div className="space-y-1">
-        {a.top.map((e) => (
-          <div key={e.id} className="flex justify-between text-xs">
-            <span className="truncate">
-              {categoryMeta(e.category).emoji} {e.title}
-            </span>
-            <span className="font-bold flex-shrink-0 ml-2">{formatINR(e.amount)}</span>
-          </div>
-        ))}
+      {/* Top 5 podium */}
+      <div className="card-panel p-4">
+        <p className="font-hand text-xl mb-2">Top 5 splurges 🛍️</p>
+        <div className="space-y-1.5">
+          {a.top.map((e, i) => (
+            <div key={e.id} className="flex items-center gap-2 text-sm">
+              <span className="w-6 text-center">{["🥇", "🥈", "🥉", "4️⃣", "5️⃣"][i]}</span>
+              <span className="flex-1 truncate">
+                {categoryMeta(e.category).emoji} {e.title}
+              </span>
+              <span className="font-bold flex-shrink-0">{formatINR(e.amount)}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

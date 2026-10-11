@@ -41,12 +41,13 @@ function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: st
   );
 }
 
-function ExpenseForm({
+export function ExpenseForm({
   expense,
   names,
   trips,
   cards,
   defaultPaidBy,
+  defaultTripId,
   onDone,
 }: {
   expense?: Expense;
@@ -54,11 +55,13 @@ function ExpenseForm({
   trips: Trip[];
   cards: CreditCard[];
   defaultPaidBy: "partner_a" | "partner_b";
+  /** Pre-selects a trip when adding (used on the trip page). */
+  defaultTripId?: string;
   onDone: () => void;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const isEdit = Boolean(expense);
-  const [selectedTripId, setSelectedTripId] = useState(expense?.trip_id ?? "");
+  const [selectedTripId, setSelectedTripId] = useState(expense?.trip_id ?? defaultTripId ?? "");
   const selectedTrip = trips.find((t) => t.id === selectedTripId);
 
   return (
