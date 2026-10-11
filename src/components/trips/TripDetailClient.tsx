@@ -185,7 +185,9 @@ function TripHeader({ trip }: { trip: Trip }) {
   const state = getTripState(trip);
   const days = tripDurationDays(trip);
 
-  const hasPhoto = Boolean(trip.cover_photo_url);
+  const hasCover = Boolean(trip.cover_photo_url);
+  // The banner is shown whole above the details, so text never sits on top of a photo.
+  const hasPhoto = false;
   const router = useRouter();
   const [painting, setPainting] = useState(false);
   const autoTried = useRef(false);
@@ -208,21 +210,23 @@ function TripHeader({ trip }: { trip: Trip }) {
 
   // Trips without any cover get a Higgsfield banner for their destination automatically.
   useEffect(() => {
-    if (!hasPhoto && !autoTried.current) {
+    if (!hasCover && !autoTried.current) {
       autoTried.current = true;
       paintBanner(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasPhoto]);
+  }, [hasCover]);
 
   return (
     <div className="card-panel p-0 mb-5 overflow-hidden">
+      {hasCover && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={trip.cover_photo_url!} alt={trip.destination ?? trip.title} className="block w-full h-auto" />
+      )}
       <div
-        className={`p-5 ${hasPhoto && !editing && !converting ? "min-h-[230px] flex flex-col justify-end" : ""}`}
+        className="p-5"
         style={{
-          background: hasPhoto
-            ? `linear-gradient(to top, rgba(0,0,0,0.6), rgba(0,0,0,0.05) 70%), ${tripThemeBackground(trip)}`
-            : tripThemeBackground(trip),
+          background: hasCover ? resolveTripTheme(trip).gradient : tripThemeBackground(trip),
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
