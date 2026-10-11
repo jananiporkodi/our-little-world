@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
 import type { Trip } from "@/lib/types";
 import { TRIP_EMOJIS } from "@/lib/types";
@@ -32,6 +33,7 @@ function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: st
 }
 
 function AddTripForm({ onDone }: { onDone: () => void }) {
+  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [emoji, setEmoji] = useState<string>(TRIP_EMOJIS[0]);
   const [startDate, setStartDate] = useState("");
@@ -41,7 +43,18 @@ function AddTripForm({ onDone }: { onDone: () => void }) {
       ref={formRef}
       action={async (formData) => {
         formData.set("coverEmoji", emoji);
-        await addTrip(formData);
+        const hasCover = (formData.get("coverPhoto") as File | null)?.size ?? 0;
+        const newId = await addTrip(formData);
+        // No photo uploaded → let Higgsfield paint a banner for the destination in the background.
+        if (newId && !hasCover) {
+          fetch("/api/trips/banner", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tripId: newId }),
+          })
+            .then(() => router.refresh())
+            .catch(() => {});
+        }
         formRef.current?.reset();
         setEmoji(TRIP_EMOJIS[0]);
         onDone();

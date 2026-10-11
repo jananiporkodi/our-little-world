@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { Trip, TripLogistics, TripItem, Expense, Memory, CreditCard } from "@/lib/types";
 import { paymentLabel } from "@/lib/cards";
@@ -185,6 +186,34 @@ function TripHeader({ trip }: { trip: Trip }) {
   const days = tripDurationDays(trip);
 
   const hasPhoto = Boolean(trip.cover_photo_url);
+  const router = useRouter();
+  const [painting, setPainting] = useState(false);
+  const autoTried = useRef(false);
+
+  async function paintBanner(force: boolean) {
+    setPainting(true);
+    try {
+      await fetch("/api/trips/banner", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tripId: trip.id, force }),
+      });
+      router.refresh();
+    } catch {
+      // ignore - the button stays available to retry
+    } finally {
+      setPainting(false);
+    }
+  }
+
+  // Trips without any cover get a Higgsfield banner for their destination automatically.
+  useEffect(() => {
+    if (!hasPhoto && !autoTried.current) {
+      autoTried.current = true;
+      paintBanner(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasPhoto]);
 
   return (
     <div className="card-panel p-0 mb-5 overflow-hidden">
@@ -239,6 +268,14 @@ function TripHeader({ trip }: { trip: Trip }) {
           <div className="flex flex-wrap gap-2 mt-3">
             <button onClick={() => setEditing(true)} className="btn-ghost !py-1.5 !px-3 text-xs">
               edit
+            </button>
+            <button
+              disabled={painting}
+              onClick={() => paintBanner(true)}
+              className="btn-ghost !py-1.5 !px-3 text-xs"
+              title="Paint a fresh banner for this destination"
+            >
+              {painting ? "painting banner…" : "✨ new banner"}
             </button>
             {state === "completed" && !trip.memory_id && (
               <button onClick={() => setConverting(true)} className="btn-ghost !py-1.5 !px-3 text-xs text-accent">
