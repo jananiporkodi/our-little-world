@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { uploadManyMediaFiles, uploadMediaFile } from "@/lib/storage";
 import { notifyOtherPartner, getActorName } from "@/lib/push";
+import { parsePaymentChoice } from "@/lib/cards";
 import type { TripLogisticsKind, TripItemKind } from "@/lib/types";
 
 export async function addTrip(formData: FormData) {
@@ -15,6 +16,7 @@ export async function addTrip(formData: FormData) {
   const coverEmoji = String(formData.get("coverEmoji") ?? "").trim() || "🧳";
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const coverPhoto = formData.get("coverPhoto") as File | null;
+  const theme = String(formData.get("theme") ?? "").trim() || null;
 
   if (!title || !startDate) return;
 
@@ -32,6 +34,7 @@ export async function addTrip(formData: FormData) {
       cover_emoji: coverEmoji,
       notes,
       cover_photo_url: coverPhotoUrl,
+      theme,
     })
     .select()
     .single();
@@ -63,10 +66,11 @@ export async function updateTrip(formData: FormData) {
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const coverPhoto = formData.get("coverPhoto") as File | null;
   const removeCoverPhoto = formData.get("removeCoverPhoto") === "1";
+  const theme = String(formData.get("theme") ?? "").trim() || null;
 
   if (!title || !startDate) return;
 
-  const update: Record<string, unknown> = { title, destination, start_date: startDate, end_date: endDate, cover_emoji: coverEmoji, notes };
+  const update: Record<string, unknown> = { title, destination, start_date: startDate, end_date: endDate, cover_emoji: coverEmoji, notes, theme };
   if (coverPhoto && coverPhoto.size > 0) {
     update.cover_photo_url = await uploadMediaFile("reference-photos", coverPhoto, "trip-covers");
   } else if (removeCoverPhoto) {
@@ -147,6 +151,45 @@ export async function convertTripToMemory(formData: FormData) {
   revalidatePath("/memories");
   revalidatePath("/gallery");
   revalidatePath("/", "layout");
+}
+
+// ---- Finance close ----
+
+export async function closeTripFinance(tripId: string) {
+  if (!tripId) return;
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("trips")
+    .update({ finance_closed_at: new Date().toISOString() })
+    .eq("id", tripId);
+  if (error) throw error;
+  revalidatePath("/trips");
+  revalidatePath(`/trips/${tripId}`);
+}
+
+export async function reopenTripFinance(tripId: string) {
+  if (!tripId) return;
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase.from("trips").update({ finance_closed_at: null }).eq("id", tripId);
+  if (error) throw error;
+  revalidatePath("/trips");
+  revalidatePath(`/trips/${tripId}`);
+}
+
+/** Tags every not-yet-recorded expense on a trip with one payment method (e.g. "everything else was GPay"). */
+export async function tagUntaggedTripExpenses(tripId: string, choice: string) {
+  if (!tripId) return;
+  const payment = parsePaymentChoice(choice);
+  if (!payment.payment_method) return;
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("expenses")
+    .update({ payment_method: payment.payment_method, card_id: payment.card_id })
+    .eq("trip_id", tripId)
+    .is("payment_method", null);
+  if (error) throw error;
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath("/expenses");
 }
 
 // ---- Logistics (transport & stays) ----

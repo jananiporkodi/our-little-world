@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { notifyOtherPartner, getActorName } from "@/lib/push";
 import { todayIST } from "@/lib/dates";
+import { parsePaymentChoice } from "@/lib/cards";
 
 function isPartner(value: string): value is "partner_a" | "partner_b" {
   return value === "partner_a" || value === "partner_b";
@@ -18,6 +19,7 @@ export async function addExpense(formData: FormData) {
   const expenseDate = String(formData.get("expenseDate") ?? "").trim() || todayIST();
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const tripId = String(formData.get("tripId") ?? "").trim() || null;
+  const payment = parsePaymentChoice(String(formData.get("payment") ?? "").trim());
 
   if (!title || !amount || Number.isNaN(amount) || amount <= 0 || !isPartner(paidBy)) return;
 
@@ -31,6 +33,8 @@ export async function addExpense(formData: FormData) {
     expense_date: expenseDate,
     notes,
     trip_id: tripId,
+    payment_method: payment.payment_method,
+    card_id: payment.card_id,
   });
   if (error) throw error;
 
@@ -59,6 +63,7 @@ export async function updateExpense(formData: FormData) {
   const expenseDate = String(formData.get("expenseDate") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const tripId = String(formData.get("tripId") ?? "").trim() || null;
+  const payment = parsePaymentChoice(String(formData.get("payment") ?? "").trim());
 
   if (!title || !amount || Number.isNaN(amount) || amount <= 0 || !isPartner(paidBy) || !expenseDate) return;
 
@@ -74,6 +79,8 @@ export async function updateExpense(formData: FormData) {
       expense_date: expenseDate,
       notes,
       trip_id: tripId,
+      payment_method: payment.payment_method,
+      card_id: payment.card_id,
     })
     .eq("id", expenseId);
   if (error) throw error;

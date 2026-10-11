@@ -7,6 +7,7 @@ import type { Trip } from "@/lib/types";
 import { TRIP_EMOJIS } from "@/lib/types";
 import { formatDateRange } from "@/lib/dates";
 import { getTripState, tripDurationDays, tripThemeBackground } from "@/lib/trips";
+import { THEME_OPTIONS } from "@/lib/tripTheme";
 import { addTrip, deleteTrip } from "@/app/(app)/trips/actions";
 
 const STATE_CHIP: Record<string, string> = {
@@ -78,6 +79,19 @@ function AddTripForm({ onDone }: { onDone: () => void }) {
       <textarea name="notes" placeholder="Any notes? (optional)" className="input-field" rows={2} />
       <div>
         <label className="block text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">
+          Page theme — auto-picked from the destination
+        </label>
+        <select name="theme" defaultValue="" className="input-field">
+          <option value="">auto</option>
+          {THEME_OPTIONS.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.emoji} {t.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="block text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">
           Cover photo (optional) — themes the trip page
         </label>
         <input type="file" name="coverPhoto" accept="image/*" className="input-field !py-2 text-xs" />
@@ -115,6 +129,7 @@ function TripCard({ trip }: { trip: Trip }) {
         </p>
         <div className="flex items-center gap-1.5 mt-1.5">
           <span className={`chip text-[10px] !py-0.5 !px-2 ${STATE_CHIP[state]}`}>{STATE_LABEL[state]}</span>
+          {trip.finance_closed_at && <span className="text-green-700 text-xs">💰 finances closed</span>}
           {trip.memory_id && <span className="text-accent text-xs">♥ saved as memory</span>}
         </div>
       </div>

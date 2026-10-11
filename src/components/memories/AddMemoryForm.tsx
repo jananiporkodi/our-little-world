@@ -18,10 +18,13 @@ function SubmitButton() {
 export default function AddMemoryForm({
   autoOpen = false,
   trips = [],
+  fixedTripId,
   onClose,
 }: {
   autoOpen?: boolean;
   trips?: Trip[];
+  /** When set, the memory is always linked to this trip (used on the trip page). */
+  fixedTripId?: string;
   onClose?: () => void;
 }) {
   const [open, setOpen] = useState(autoOpen);
@@ -80,7 +83,8 @@ export default function AddMemoryForm({
         </select>
         <input name="tags" placeholder="tags, comma, separated" className="input-field" />
       </div>
-      {trips.length > 0 && (
+      {fixedTripId && <input type="hidden" name="tripId" value={fixedTripId} />}
+      {!fixedTripId && trips.length > 0 && (
         <select name="tripId" className="input-field" defaultValue="__none__">
           <option value="__none__">no linked trip</option>
           {trips.map((t) => (

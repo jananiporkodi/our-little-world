@@ -3,8 +3,10 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
-import type { Expense, Settlement, Trip, PartnerAssignee } from "@/lib/types";
+import type { Expense, Settlement, Trip, PartnerAssignee, CreditCard } from "@/lib/types";
 import { EXPENSE_CATEGORIES } from "@/lib/types";
+import { paymentChoiceValue, paymentLabel } from "@/lib/cards";
+import PaymentSelect from "./PaymentSelect";
 import { todayIST, formatFriendlyDate } from "@/lib/dates";
 import { addExpense, updateExpense, deleteExpense, addSettlement, deleteSettlement } from "@/app/(app)/expenses/actions";
 
@@ -43,17 +45,21 @@ function ExpenseForm({
   expense,
   names,
   trips,
+  cards,
   defaultPaidBy,
   onDone,
 }: {
   expense?: Expense;
   names: { a: string; b: string };
   trips: Trip[];
+  cards: CreditCard[];
   defaultPaidBy: "partner_a" | "partner_b";
   onDone: () => void;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const isEdit = Boolean(expense);
+  const [selectedTripId, setSelectedTripId] = useState(expense?.trip_id ?? "");
+  const selectedTrip = trips.find((t) => t.id === selectedTripId);
 
   return (
     <form
@@ -117,8 +123,14 @@ function ExpenseForm({
           <input type="checkbox" name="isShared" defaultChecked={expense?.is_shared ?? true} className="w-4 h-4" />
           split equally
         </label>
+        <PaymentSelect cards={cards} defaultValue={expense ? paymentChoiceValue(expense) : ""} />
         {trips.length > 0 && (
-          <select name="tripId" defaultValue={expense?.trip_id ?? ""} className="input-field !w-auto">
+          <select
+            name="tripId"
+            value={selectedTripId}
+            onChange={(e) => setSelectedTripId(e.target.value)}
+            className="input-field !w-auto"
+          >
             <option value="">no trip</option>
             {trips.map((t) => (
               <option key={t.id} value={t.id}>
@@ -132,6 +144,11 @@ function ExpenseForm({
           cancel
         </button>
       </div>
+      {selectedTrip?.finance_closed_at && (
+        <p className="text-xs font-semibold text-amber-700 bg-amber-100 rounded-lg px-3 py-2">
+          Heads up: finances for &ldquo;{selectedTrip.title}&rdquo; are closed. Saving will change a closed trip&apos;s numbers.
+        </p>
+      )}
     </form>
   );
 }
@@ -234,12 +251,14 @@ export default function ExpensesClient({
   expenses,
   settlements,
   trips,
+  cards,
   partnerNames,
   currentPartner,
 }: {
   expenses: Expense[];
   settlements: Settlement[];
   trips: Trip[];
+  cards: CreditCard[];
   partnerNames: { a: string; b: string };
   currentPartner: PartnerAssignee | null;
 }) {
@@ -411,7 +430,7 @@ export default function ExpensesClient({
 
       {adding && (
         <div className="mb-5">
-          <ExpenseForm names={partnerNames} trips={trips} defaultPaidBy={defaultPaidBy} onDone={() => setAdding(false)} />
+          <ExpenseForm names={partnerNames} trips={trips} cards={cards} defaultPaidBy={defaultPaidBy} onDone={() => setAdding(false)} />
         </div>
       )}
 
@@ -562,6 +581,9 @@ export default function ExpensesClient({
                         <td className="py-2 px-3">
                           <p className="font-semibold truncate max-w-[180px]">{e.title}</p>
                           {e.notes && <p className="text-[11px] text-ink-soft italic truncate max-w-[180px]">{e.notes}</p>}
+                          {e.payment_method && (
+                            <p className="text-[10px] text-ink-soft truncate max-w-[180px]">via {paymentLabel(e, cards)}</p>
+                          )}
                           {trip && (
                             <Link
                               href={`/trips/${trip.id}`}
@@ -612,6 +634,7 @@ export default function ExpensesClient({
               expense={editingExpense}
               names={partnerNames}
               trips={trips}
+              cards={cards}
               defaultPaidBy={editingExpense.paid_by}
               onDone={() => setEditingExpense(null)}
             />

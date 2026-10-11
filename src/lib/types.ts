@@ -190,8 +190,16 @@ export interface Expense {
   notes: string | null;
   trip_id: string | null;
   card_id: string | null;
+  /** "credit_card" | "debit_card" | "upi" | "cash" | null (not recorded yet) */
+  payment_method: string | null;
   created_at: string;
 }
+
+export const PAYMENT_METHODS = [
+  { key: "debit_card", label: "Debit card", emoji: "💳" },
+  { key: "upi", label: "GPay / UPI", emoji: "📱" },
+  { key: "cash", label: "Cash", emoji: "💵" },
+] as const;
 
 export const CARD_NETWORKS = ["Visa", "Mastercard", "Amex", "RuPay", "Diners", "Discover", "Other"] as const;
 export const REWARD_TYPES = [
@@ -210,6 +218,8 @@ export interface CreditCard {
   due_day: number | null;
   reward_type: string;
   reward_rate_general: number;
+  /** Rupee value of one point (cashback cards: 1, since rates are already a percentage). */
+  point_value: number;
   /** category key -> reward rate (%), overriding reward_rate_general for that category */
   reward_rules: Record<string, number>;
   color: string;
@@ -230,6 +240,9 @@ export interface Trip {
   notes: string | null;
   memory_id: string | null;
   cover_photo_url: string | null;
+  finance_closed_at: string | null;
+  /** Visual theme key (beach, mountains, ...); null = guess from the destination. */
+  theme: string | null;
   created_at: string;
 }
 

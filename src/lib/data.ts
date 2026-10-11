@@ -20,6 +20,7 @@ import type {
   Trip,
   TripLogistics,
   TripItem,
+  CreditCard,
 } from "./types";
 
 /** How many of each reaction (kiss, hug, miss-you, high-five) the current device's partner has SENT, all-time - powers the badge on each floating reaction icon so you always know your own tally. */
@@ -195,6 +196,13 @@ export async function getSettlements(): Promise<Settlement[]> {
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data as Settlement[];
+}
+
+export async function getCreditCards(): Promise<CreditCard[]> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase.from("credit_cards").select("*").order("created_at", { ascending: true });
+  if (error) throw error;
+  return data as CreditCard[];
 }
 
 export async function getTrips(): Promise<Trip[]> {

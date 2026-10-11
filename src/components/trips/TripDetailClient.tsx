@@ -4,7 +4,13 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import Image from "next/image";
-import type { Trip, TripLogistics, TripItem, Expense, Memory } from "@/lib/types";
+import type { Trip, TripLogistics, TripItem, Expense, Memory, CreditCard } from "@/lib/types";
+import { paymentLabel } from "@/lib/cards";
+import PaymentSelect from "@/components/expenses/PaymentSelect";
+import AddMemoryForm from "@/components/memories/AddMemoryForm";
+import { TripFinanceBar, TripAnalysis } from "./TripFinance";
+import TripThemeBackdrop from "./TripThemeBackdrop";
+import { resolveTripTheme, THEME_OPTIONS } from "@/lib/tripTheme";
 import { TRIP_EMOJIS, TRANSPORT_MODES, WISHLIST_CATEGORIES, EXPENSE_CATEGORIES } from "@/lib/types";
 import { formatFriendlyDate, formatDateRange, todayIST } from "@/lib/dates";
 import { formatTimeRange } from "@/lib/plans";
@@ -102,6 +108,19 @@ function EditTripForm({ trip, onDone }: { trip: Trip; onDone: () => void }) {
         <input type="date" name="endDate" defaultValue={trip.end_date} min={startDate} className="input-field" />
       </div>
       <textarea name="notes" defaultValue={trip.notes ?? ""} placeholder="Notes (optional)" className="input-field" rows={2} />
+      <div>
+        <label className="block text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">
+          Page theme — auto-picked from the destination
+        </label>
+        <select name="theme" defaultValue={trip.theme ?? ""} className="input-field text-sm">
+          <option value="">auto ({resolveTripTheme(trip).label})</option>
+          {THEME_OPTIONS.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.emoji} {t.label}
+            </option>
+          ))}
+        </select>
+      </div>
       <div>
         <label className="block text-[10px] font-bold uppercase tracking-wide text-ink-soft mb-1">
           Cover photo — themes this page
@@ -588,15 +607,20 @@ function ChecklistSection({
 function AddTripExpenseForm({
   tripId,
   names,
+  cards,
+  financeClosed,
   defaultPaidBy,
   onDone,
 }: {
   tripId: string;
   names: { a: string; b: string };
+  cards: CreditCard[];
+  financeClosed: boolean;
   defaultPaidBy: "partner_a" | "partner_b";
   onDone: () => void;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const firstCard = cards.find((c) => c.is_active);
   return (
     <form
       ref={formRef}
@@ -622,6 +646,11 @@ function AddTripExpenseForm({
         <option value="partner_a">Paid by {names.a}</option>
         <option value="partner_b">Paid by {names.b}</option>
       </select>
+      <PaymentSelect
+        cards={cards}
+        defaultValue={firstCard ? `card:${firstCard.id}` : ""}
+        className="input-field !w-auto text-xs"
+      />
       <label className="flex items-center gap-1 text-[11px] text-ink-soft">
         <input type="checkbox" name="isShared" defaultChecked className="w-3.5 h-3.5" />
         split
@@ -630,6 +659,11 @@ function AddTripExpenseForm({
       <button type="button" onClick={onDone} className="btn-ghost !py-1.5 !px-3 text-xs">
         cancel
       </button>
+      {financeClosed && (
+        <p className="w-full text-[11px] font-semibold text-amber-700 bg-amber-100 rounded-lg px-3 py-1.5">
+          Finances for this trip are closed — adding this will change its numbers.
+        </p>
+      )}
     </form>
   );
 }
@@ -638,10 +672,14 @@ function TripExpensesSection({
   tripId,
   expenses,
   names,
+  cards,
+  financeClosed,
 }: {
   tripId: string;
   expenses: Expense[];
   names: { a: string; b: string };
+  cards: CreditCard[];
+  financeClosed: boolean;
 }) {
   const [adding, setAdding] = useState(false);
 
@@ -703,6 +741,7 @@ function TripExpensesSection({
                 <p className="truncate">{e.title}</p>
                 <p className="text-[11px] text-ink-soft">
                   {formatFriendlyDate(e.expense_date)} · {e.paid_by === "partner_a" ? names.a : names.b}
+                  {e.payment_method ? ` · ${paymentLabel(e, cards)}` : ""}
                 </p>
               </div>
               <p className="font-bold flex-shrink-0 ml-2">{formatINR(e.amount)}</p>
@@ -712,7 +751,14 @@ function TripExpensesSection({
       )}
 
       {adding ? (
-        <AddTripExpenseForm tripId={tripId} names={names} defaultPaidBy="partner_a" onDone={() => setAdding(false)} />
+        <AddTripExpenseForm
+          tripId={tripId}
+          names={names}
+          cards={cards}
+          financeClosed={financeClosed}
+          defaultPaidBy="partner_a"
+          onDone={() => setAdding(false)}
+        />
       ) : (
         <button onClick={() => setAdding(true)} className="btn-ghost !py-1 !px-2.5 text-[11px] text-accent mt-2">
           + add expense
@@ -727,46 +773,70 @@ function TripExpensesSection({
 
 // ---------- Memories & collage ----------
 
-function TripMemoriesSection({ memories }: { memories: Memory[] }) {
-  if (memories.length === 0) {
-    return (
-      <SectionCard title="Memories from this trip">
-        <p className="text-xs text-ink-soft italic">
-          No memories linked yet — when adding or editing a memory, link it to this trip to see it here.
-        </p>
-      </SectionCard>
-    );
-  }
-
-  const collagePhotos = memories.flatMap((m) => m.photos ?? []).slice(0, 9);
+function TripMemoriesSection({ tripId, memories }: { tripId: string; memories: Memory[] }) {
+  const [enlarged, setEnlarged] = useState<string | null>(null);
 
   return (
     <SectionCard title="Memories from this trip">
-      {collagePhotos.length > 0 && (
-        <div className="grid grid-cols-3 gap-1.5 mb-3">
-          {collagePhotos.map((url, i) => (
-            <Link
-              key={`${url}-${i}`}
-              href={`/memories?open=${memories.find((m) => m.photos?.includes(url))?.id ?? ""}`}
-              className="relative aspect-square rounded-lg overflow-hidden block"
-            >
-              <Image src={url} alt="" fill sizes="150px" className="object-cover" />
-            </Link>
-          ))}
+      {memories.length === 0 && (
+        <p className="text-xs text-ink-soft italic mb-2">
+          No memories yet — add one below with a few photos and the story, and it shows up right here.
+        </p>
+      )}
+
+      <div className="space-y-5">
+        {memories.map((m) => {
+          const photos = m.photos ?? [];
+          return (
+            <div key={m.id} className="border-b last:border-0 border-black/[0.06] dark:border-white/10 pb-5 last:pb-0">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  {m.title && <p className="font-hand text-2xl leading-tight">{m.title}</p>}
+                  <p className="text-[11px] text-ink-soft">
+                    {m.location ? `📍 ${m.location} · ` : ""}
+                    {formatFriendlyDate(m.memory_date)}
+                  </p>
+                </div>
+                <Link
+                  href={`/memories?open=${m.id}`}
+                  className="text-[11px] text-accent underline underline-offset-2 flex-shrink-0"
+                >
+                  open / edit
+                </Link>
+              </div>
+              {m.story && <p className="font-patrick text-lg leading-snug mt-2 whitespace-pre-wrap">{m.story}</p>}
+              {photos.length > 0 && (
+                <div className={`grid gap-1.5 mt-3 ${photos.length === 1 ? "grid-cols-1" : "grid-cols-2 sm:grid-cols-3"}`}>
+                  {photos.map((url) => (
+                    <button
+                      key={url}
+                      onClick={() => setEnlarged(url)}
+                      className={`relative rounded-lg overflow-hidden ${photos.length === 1 ? "aspect-[4/3]" : "aspect-square"}`}
+                    >
+                      <Image src={url} alt={m.title ?? ""} fill sizes="(max-width: 640px) 50vw, 240px" className="object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-4">
+        <AddMemoryForm fixedTripId={tripId} />
+      </div>
+
+      {enlarged && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setEnlarged(null)}
+        >
+          <div className="relative w-full h-full max-w-4xl">
+            <Image src={enlarged} alt="" fill sizes="100vw" className="object-contain" />
+          </div>
         </div>
       )}
-      <div className="space-y-1.5">
-        {memories.map((m) => (
-          <Link
-            key={m.id}
-            href={`/memories?open=${m.id}`}
-            className="flex items-center justify-between text-sm border-b last:border-0 border-black/[0.05] dark:border-white/5 pb-1.5 last:pb-0 hover:text-accent transition"
-          >
-            <span className="truncate">{m.title || "untitled memory"}</span>
-            <span className="text-[11px] text-ink-soft flex-shrink-0 ml-2">{formatFriendlyDate(m.memory_date)}</span>
-          </Link>
-        ))}
-      </div>
     </SectionCard>
   );
 }
@@ -779,6 +849,7 @@ export default function TripDetailClient({
   items,
   expenses,
   memories,
+  cards,
   partnerNames,
 }: {
   trip: Trip;
@@ -786,21 +857,33 @@ export default function TripDetailClient({
   items: TripItem[];
   expenses: Expense[];
   memories: Memory[];
+  cards: CreditCard[];
   partnerNames: { a: string; b: string };
 }) {
   const dayKeys = useMemo(() => tripDayKeys(trip), [trip]);
+  const financeClosed = Boolean(trip.finance_closed_at);
 
   return (
-    <div>
+    <div className="relative">
+      <TripThemeBackdrop theme={resolveTripTheme(trip)} />
+      <div className="relative z-10">
       <Link href="/trips" className="text-[11px] text-ink-soft underline underline-offset-2 mb-3 inline-block">
         ← all trips
       </Link>
       <TripHeader trip={trip} />
+      <TripFinanceBar trip={trip} expenses={expenses} cards={cards} />
+      <TripAnalysis expenses={expenses} cards={cards} names={partnerNames} dayCount={dayKeys.length} />
       <ItinerarySection tripId={trip.id} items={items} dayKeys={dayKeys} />
       <LogisticsSection tripId={trip.id} logistics={logistics} kind="transport" title="Transport" />
       <LogisticsSection tripId={trip.id} logistics={logistics} kind="stay" title="Stay" />
-      <TripExpensesSection tripId={trip.id} expenses={expenses} names={partnerNames} />
-      <TripMemoriesSection memories={memories} />
+      <TripExpensesSection
+        tripId={trip.id}
+        expenses={expenses}
+        names={partnerNames}
+        cards={cards}
+        financeClosed={financeClosed}
+      />
+      <TripMemoriesSection tripId={trip.id} memories={memories} />
       <ChecklistSection
         tripId={trip.id}
         items={items}
@@ -810,6 +893,7 @@ export default function TripDetailClient({
         showCategory
       />
       <ChecklistSection tripId={trip.id} items={items} kind="packing" title="Packing list" placeholder="What to pack…" />
+      </div>
     </div>
   );
 }
